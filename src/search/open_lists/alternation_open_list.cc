@@ -39,6 +39,15 @@ public:
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
+
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
+
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 
@@ -127,6 +136,65 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
     return false;
 }
 
+template<class Entry>
+int AlternationOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
+    for (const auto &sublist : open_lists) {
+        if(sublist->is_dead_end(eval_context)) {
+            return sublist->create_subcertificate(eval_context);
+        }
+    }
+    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void AlternationOpenList<Entry>::write_subcertificates(const std::string &filename) {
+    for (const auto &sublist : open_lists) {
+        sublist->write_subcertificates(filename);
+    }
+}
+
+template<class Entry>
+std::vector<int> AlternationOpenList<Entry>::get_varorder() {
+    std::vector<int> varorder;
+    for (const auto &sublist : open_lists) {
+        if(varorder.empty()) {
+            varorder = sublist->get_varorder();
+        } else if(varorder != sublist->get_varorder()) {
+            std::cerr << "Different varorders in certificate!" << std::endl;
+            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+        }
+    }
+    return varorder;
+}
+
+template<class Entry>
+void AlternationOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    for (const auto &sublist : open_lists) {
+        if(sublist->is_dead_end(eval_context)) {
+            return sublist->store_deadend_info(eval_context);
+        }
+    }
+}
+
+template<class Entry>
+std::pair<int,int> AlternationOpenList<Entry>::get_set_and_deadknowledge_id(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (const auto &sublist : open_lists) {
+        if(sublist->is_dead_end(eval_context)) {
+            return sublist->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void AlternationOpenList<Entry>::finish_unsolvability_proof() {
+    for (const auto &sublist : open_lists) {
+        sublist->finish_unsolvability_proof();
+    }
+}
 
 AlternationOpenListFactory::AlternationOpenListFactory(const Options &options)
     : options(options) {

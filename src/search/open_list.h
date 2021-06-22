@@ -5,6 +5,7 @@
 
 #include "evaluation_context.h"
 #include "operator_id.h"
+#include "unsolvability/unsolvabilitymanager.h"
 
 class StateID;
 
@@ -123,6 +124,19 @@ public:
     virtual bool is_dead_end(EvaluationContext &eval_context) const = 0;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const = 0;
+
+    // functions related to unsolvability certificate generation
+    virtual int create_subcertificate(EvaluationContext &eval_context) = 0;
+    virtual void write_subcertificates(const std::string &filename) = 0;
+    // can be left empty if varorder is identical to fdr task
+    // TODO: Ideally we would pass by reference (performance should not be affected since the function is only called once)
+    virtual std::vector<int> get_varorder() = 0;
+
+    // functions related to unsolvability proof generation
+    virtual void store_deadend_info(EvaluationContext &eval_context) = 0;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) = 0;
+    virtual void finish_unsolvability_proof() = 0;
 };
 
 

@@ -79,6 +79,69 @@ void MergeAndShrinkRepresentationLeaf::dump() const {
     utils::g_log << endl;
 }
 
+void MergeAndShrinkRepresentationLeaf::get_bdds(
+        CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) {
+
+    CuddBDD mutexbdd = CuddBDD(manager,false);
+
+    std::vector<std::pair<int,int>> pos;
+    std::vector<std::pair<int,int>> neg;
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        neg.push_back(std::make_pair(var_id, i));
+    }
+    pos.push_back(std::make_pair(var_id, 0));
+
+    CuddBDD varbdd = CuddBDD(manager, pos, neg);
+    bdd_for_val.insert({lookup_table[0],varbdd});
+    mutexbdd.lor(varbdd);
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        neg[i-1].second = i-1;
+        pos[0].second = i;
+        varbdd = CuddBDD(manager, pos, neg);
+        if(bdd_for_val.find(lookup_table[i]) == bdd_for_val.end()) {
+            bdd_for_val.insert({lookup_table[i],varbdd});
+        } else {
+            bdd_for_val[lookup_table[i]].lor(varbdd);
+        }
+        mutexbdd.lor(varbdd);
+    }
+    bdd_for_val.insert({-2, mutexbdd});
+}
+
+CuddBDD *MergeAndShrinkRepresentationLeaf::get_deadend_bdd(
+            CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) {
+
+    CuddBDD* b_inf = new CuddBDD(manager, false);
+
+    std::vector<std::pair<int,int>> pos;
+    std::vector<std::pair<int,int>> neg;
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        neg.push_back(std::make_pair(var_id, i));
+    }
+    pos.push_back(std::make_pair(var_id, 0));
+
+    int val = lookup_table[0];
+    CuddBDD varbdd = CuddBDD(manager, pos, neg);
+    varbdd.land(bdd_for_val[val]);
+    b_inf->lor(varbdd);
+
+    for(size_t i = 1; i < lookup_table.size(); ++i) {
+        val = lookup_table[i];
+        neg[i-1].second = i-1;
+        pos[0].second = i;
+        if(first && val >= 0) {
+            val = 0;
+        }
+        varbdd = CuddBDD(manager, pos, neg);
+        varbdd.land(bdd_for_val[val]);
+        b_inf->lor(varbdd);
+    }
+    return b_inf;
+}
+
+void MergeAndShrinkRepresentationLeaf::fill_varorder(std::vector<int> &varorder) {
+    varorder.push_back(var_id);
+}
 
 MergeAndShrinkRepresentationMerge::MergeAndShrinkRepresentationMerge(
     unique_ptr<MergeAndShrinkRepresentation> left_child_,
@@ -156,5 +219,58 @@ void MergeAndShrinkRepresentationMerge::dump() const {
     left_child->dump();
     utils::g_log << "right child:" << endl;
     right_child->dump();
+}
+
+void MergeAndShrinkRepresentationMerge::get_bdds(
+        CuddManager *, std::unordered_map<int, CuddBDD> &) {
+    // TODO: clearer error message
+    std::cerr << "Non-linear merge strategy";
+    exit(1);
+}
+
+
+CuddBDD* MergeAndShrinkRepresentationMerge::get_deadend_bdd(
+         CuddManager * manager, std::unordered_map<int,CuddBDD> &bdd_for_val, bool first) {
+    size_t rows = lookup_table.size();
+    size_t columns = lookup_table[0].size();
+
+    std::unordered_map<int, CuddBDD> row_bdds;
+
+    // for linear merge strategies, the right child is always an atomic abstraction
+    std::unordered_map<int, CuddBDD> right_child_bdds;
+    right_child->get_bdds(manager, right_child_bdds);
+
+
+    int val;
+    for(size_t i = 0; i < rows; ++i) {
+        CuddBDD b_i = CuddBDD(manager, false);
+        for(size_t j = 0; j < columns; ++j) {
+            val = lookup_table[i][j];
+            if(first && val >= 0) {
+                val = 0;
+            }
+            CuddBDD right_child = right_child_bdds[j];
+            right_child.land(bdd_for_val[val]);
+            b_i.lor(right_child);
+        }
+        if(right_child_bdds.find(-1) != right_child_bdds.end()) {
+            CuddBDD right_child = right_child_bdds[-1];
+            right_child.land(bdd_for_val[-1]);
+            b_i.lor(right_child);
+        }
+        row_bdds.insert({i, b_i});
+    }
+    // TODO: Hack: -2 is the mutex BDD
+    CuddBDD mutex_bdd = right_child_bdds[-2];
+    mutex_bdd.land(bdd_for_val[-1]);
+    row_bdds.insert({-1, mutex_bdd});
+
+    return left_child->get_deadend_bdd(manager, row_bdds, false);
+}
+
+void MergeAndShrinkRepresentationMerge::fill_varorder(std::vector<int> &varorder) {
+    // TODO: doublecheck if we get the varorder right!
+    left_child->fill_varorder(varorder);
+    right_child->fill_varorder(varorder);
 }
 }

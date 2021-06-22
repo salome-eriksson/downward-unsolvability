@@ -57,6 +57,15 @@ public:
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
     virtual bool empty() const override;
     virtual void clear() override;
+
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
+
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 
 template<class HeapNode>
@@ -116,6 +125,46 @@ template<class Entry>
 bool EpsilonGreedyOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
     return is_dead_end(eval_context) && evaluator->dead_ends_are_reliable();
+}
+template<class Entry>
+int EpsilonGreedyOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
+    if(eval_context.is_evaluator_value_infinite(evaluator.get())) {
+        return evaluator->create_subcertificate(eval_context);
+    }
+    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void EpsilonGreedyOpenList<Entry>::write_subcertificates(const std::string &filename) {
+    evaluator->write_subcertificates(filename);
+}
+
+template<class Entry>
+std::vector<int> EpsilonGreedyOpenList<Entry>::get_varorder() {
+    return evaluator->get_varorder();
+}
+
+template<class Entry>
+void EpsilonGreedyOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+        evaluator->store_deadend_info(eval_context);
+    }
+}
+
+template<class Entry>
+std::pair<int,int> EpsilonGreedyOpenList<Entry>::get_set_and_deadknowledge_id(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+        return evaluator->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void EpsilonGreedyOpenList<Entry>::finish_unsolvability_proof() {
+    evaluator->finish_unsolvability_proof();
 }
 
 template<class Entry>

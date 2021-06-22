@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
+#include <sstream>
 
 using namespace std;
 
@@ -35,8 +36,10 @@ UnaryOperator::UnaryOperator(
 
 
 // construction and destruction
+// TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
 RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
-    : Heuristic(opts) {
+    : Heuristic(opts), unsolv_subsumption_check(false),
+      unsolvability_setup(false) {
     // Build propositions.
     propositions.resize(task_properties::get_num_facts(task_proxy));
 
@@ -294,5 +297,123 @@ void RelaxationHeuristic::simplify() {
         unary_operators.end());
 
     utils::g_log << " done! [" << unary_operators.size() << " unary operators]" << endl;
+}
+
+// CARE: we assume the heuristic has just been calculated for this state
+std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const State &state) {
+    auto it = state_to_bddindex.find(state.get_id().get_value());
+    if (it != state_to_bddindex.end()) {
+        return std::make_pair(true, it->second);
+    }
+    CuddBDD statebdd(cudd_manager, state);
+    if(unsolv_subsumption_check) {
+        for(size_t i = 0; i < bdds.size(); ++i) {
+            if(statebdd.isSubsetOf(bdds[i])) {
+                return std::make_pair(true,i);
+            }
+        }
+    }
+
+    std::vector<std::pair<int,int>> pos_vars;
+    std::vector<std::pair<int,int>> neg_vars;
+    for(size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
+        for(int j = 0; j < task_proxy.get_variables()[i].get_domain_size(); ++j) {
+            if(propositions[proposition_offsets[i]+j].cost == -1) {
+                neg_vars.push_back(std::make_pair(i,j));
+            }
+        }
+    }
+    bdds.push_back(CuddBDD(cudd_manager, pos_vars,neg_vars));
+    state_to_bddindex[state.get_id().get_value()] = bdds.size()-1;
+    return std::make_pair(false,bdds.size()-1);
+}
+
+int RelaxationHeuristic::create_subcertificate(EvaluationContext &eval_context) {
+    if(!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        unsolvability_setup = true;
+    }
+    std::pair<bool,int> get_bdd = get_bdd_for_state(eval_context.get_state());
+    bool bdd_already_seen = get_bdd.first;
+    // we have used this bdd for another dead end already, use this stateid
+    if(bdd_already_seen) {
+        int bddindex = get_bdd.second;
+        return bdd_to_stateid[bddindex];
+    }
+    int stateid = eval_context.get_state().get_id().get_value();
+    bdd_to_stateid.push_back(stateid);
+    return stateid;
+}
+
+void RelaxationHeuristic::write_subcertificates(const string &filename) {
+    if(!bdds.empty()) {
+        cudd_manager->dumpBDDs_certificate(bdds, bdd_to_stateid, filename);
+    } else {
+        std::ofstream cert_stream;
+        cert_stream.open(filename);
+        cert_stream.close();
+    }
+}
+
+void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
+    if(!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        unsolvability_setup = true;
+    }
+
+    int bddindex = get_bdd_for_state(eval_context.get_state()).second;
+    state_to_bddindex.insert({eval_context.get_state().get_id().get_value(), bddindex});
+}
+
+std::pair<int,int> RelaxationHeuristic::get_set_and_deadknowledge_id(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    if (set_and_knowledge_ids.empty()) {
+        std::stringstream ss;
+        ss << unsolvmanager.get_directory() << this << ".bdd";
+        bdd_filename = ss.str();
+        set_and_knowledge_ids.resize(bdds.size(), {-1,-1});
+    }
+    int bddindex = state_to_bddindex[eval_context.get_state().get_id().get_value()];
+    assert(bddindex >= 0);
+    std::pair<int,int> &ids = set_and_knowledge_ids[bddindex];
+
+    if(ids.first == -1) {
+        int setid = unsolvmanager.get_new_setid();
+
+        std::ofstream &certstream = unsolvmanager.get_stream();
+        certstream << "e " << setid << " b " << bdd_filename << " " << bddindex << " ;\n";
+        int progid = unsolvmanager.get_new_setid();
+        certstream << "e " << progid << " p " << setid << " 0" << "\n";
+        int union_set_empty = unsolvmanager.get_new_setid();;
+        certstream << "e " << union_set_empty << " u "
+                   << setid << " " << unsolvmanager.get_emptysetid() << "\n";
+
+        int k_prog = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b2\n";
+
+        int set_and_goal = unsolvmanager.get_new_setid();
+        certstream << "e " << set_and_goal << " i "
+                   << setid << " " << unsolvmanager.get_goalsetid() << "\n";
+        int k_set_and_goal_empty = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_set_and_goal_empty << " s "
+                   << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b1\n";
+        int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
+                   << " sd " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
+
+        int k_set_dead = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_set_dead << " d " << setid << " pg " << k_prog << " "
+                   << unsolvmanager.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
+
+        ids.first = setid;
+        ids.second = k_set_dead;
+    }
+    return ids;
+}
+
+void RelaxationHeuristic::finish_unsolvability_proof() {
+    if(!bdds.empty()) {
+        cudd_manager->dumpBDDs(bdds, bdd_filename);
+    }
 }
 }

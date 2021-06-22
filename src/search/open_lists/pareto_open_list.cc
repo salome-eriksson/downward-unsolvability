@@ -56,6 +56,15 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
 
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
+
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
+
     static OpenList<Entry> *_parse(OptionParser &p);
 };
 
@@ -219,6 +228,66 @@ bool ParetoOpenList<Entry>::is_reliable_dead_end(
             evaluator->dead_ends_are_reliable())
             return true;
     return false;
+}
+
+template<class Entry>
+int ParetoOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
+    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
+        if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+            return evaluator->create_subcertificate(eval_context);
+        }
+    }
+    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void ParetoOpenList<Entry>::write_subcertificates(const std::string &filename) {
+    for(const shared_ptr<Evaluator> &evaluator : evaluators) {
+        evaluator->write_subcertificates(filename);
+    }
+}
+
+template<class Entry>
+std::vector<int> ParetoOpenList<Entry>::get_varorder() {
+    std::vector<int> varorder;
+    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
+        if(varorder.empty()) {
+            varorder = evaluator->get_varorder();
+        } else if(varorder != evaluator->get_varorder()) {
+            std::cerr << "Different varorders in certificate!" << std::endl;
+            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+        }
+    }
+    return varorder;
+}
+
+template<class Entry>
+void ParetoOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
+        if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+            evaluator->store_deadend_info(eval_context);
+        }
+    }
+}
+
+template<class Entry>
+std::pair<int,int> ParetoOpenList<Entry>::get_set_and_deadknowledge_id(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
+        if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+            return evaluator->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
+
+template<class Entry>
+void ParetoOpenList<Entry>::finish_unsolvability_proof() {
+    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
+        evaluator->finish_unsolvability_proof();
+    }
 }
 
 ParetoOpenListFactory::ParetoOpenListFactory(

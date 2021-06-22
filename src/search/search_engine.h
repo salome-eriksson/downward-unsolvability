@@ -32,6 +32,15 @@ enum class Verbosity;
 
 enum SearchStatus {IN_PROGRESS, TIMEOUT, FAILED, SOLVED};
 
+enum class UnsolvabilityVerificationType {
+    NONE,
+    CERTIFICATE,
+    CERTIFICATE_FASTDUMP,
+    CERTIFICATE_NOHINTS,
+    PROOF,
+    PROOF_DISCARD
+};
+
 class SearchEngine {
     SearchStatus status;
     bool solution_found;
@@ -79,6 +88,7 @@ public:
     static void add_pruning_option(options::OptionParser &parser);
     static void add_options_to_parser(options::OptionParser &parser);
     static void add_succ_order_options(options::OptionParser &parser);
+    static void add_unsolvability_options(options::OptionParser &parser);
 };
 
 /*

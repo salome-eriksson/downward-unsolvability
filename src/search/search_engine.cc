@@ -172,6 +172,26 @@ void SearchEngine::add_succ_order_options(OptionParser &parser) {
     utils::add_rng_options(parser);
 }
 
+void SearchEngine::add_unsolvability_options(OptionParser &parser) {
+    vector<string> verification_types;
+    verification_types.push_back("NONE");
+    verification_types.push_back("CERTIFICATE");
+    verification_types.push_back("CERTIFICATE_FASTDUMP");
+    verification_types.push_back("CERTIFICATE_NOHINTS");
+    verification_types.push_back("PROOF");
+    verification_types.push_back("PROOF_DISCARD");
+    parser.add_enum_option<UnsolvabilityVerificationType>(
+                "unsolv_verification",
+                verification_types,
+                "type of unsolvability verification",
+                "NONE");
+    parser.add_option<std::string>(
+        "unsolv_directory",
+        "The directory in which the unsolvability verification should be written."
+        "Defaults to current directory if none is set.",
+        ".");
+}
+
 void print_initial_evaluator_values(const EvaluationContext &eval_context) {
     eval_context.get_cache().for_each_evaluator_result(
         [] (const Evaluator *eval, const EvaluationResult &result) {

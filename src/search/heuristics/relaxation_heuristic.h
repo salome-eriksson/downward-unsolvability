@@ -4,6 +4,8 @@
 #include "array_pool.h"
 
 #include "../heuristic.h"
+#include "../unsolvability/cudd_interface.h"
+#include "../evaluation_context.h"
 
 #include "../utils/collections.h"
 
@@ -65,6 +67,19 @@ protected:
     std::vector<Proposition> propositions;
     std::vector<PropID> goal_propositions;
 
+    bool unsolv_subsumption_check;
+    CuddManager *cudd_manager;
+    std::vector<CuddBDD> bdds;
+    std::vector<int> bdd_to_stateid;
+    std::unordered_map<int,int> state_to_bddindex;
+    /*
+      the first int is a setid which corresponds to the BDD in the bdds vector
+      the second int is a knowledgeid which corresponds to the knowledge that setid is dead
+     */
+    std::vector<std::pair<int,int>> set_and_knowledge_ids;
+    std::string bdd_filename;
+    bool unsolvability_setup;
+
     array_pool::ArrayPool preconditions_pool;
     array_pool::ArrayPool precondition_of_pool;
 
@@ -109,10 +124,26 @@ protected:
     const Proposition *get_proposition(int var, int value) const;
     Proposition *get_proposition(int var, int value);
     Proposition *get_proposition(const FactProxy &fact);
+
+    /*
+      bool bdd_already_seen: whether the bdd was built before the function call already
+      int bddindex: the index of the requested bdd in bdds vector
+     */
+    std::pair<bool,int> get_bdd_for_state(const State &state);
 public:
     explicit RelaxationHeuristic(const options::Options &options);
 
     virtual bool dead_ends_are_reliable() const override;
+
+    // functions related to unsolvability certificate generation
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+
+    // functions related to unsolvability proof generation
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual void finish_unsolvability_proof() override;
 };
 }
 

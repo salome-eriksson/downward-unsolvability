@@ -2,6 +2,7 @@
 #define EVALUATOR_H
 
 #include "evaluation_result.h"
+#include "unsolvability/unsolvabilitymanager.h"
 
 #include <set>
 
@@ -75,6 +76,25 @@ public:
     */
     virtual EvaluationResult compute_result(
         EvaluationContext &eval_context) = 0;
+
+
+    // functions related to unsolvability certificate generation
+    virtual int create_subcertificate(EvaluationContext &) {return -1;}
+    virtual void write_subcertificates(const std::string &) {}
+    // can be left empty if varorder is identical to fdr task
+    virtual std::vector<int> get_varorder() {return std::vector<int>();}
+
+    // functions related to unsolvability proof generation
+    // CARE: we assume this function is called right after heuristic computation
+    virtual void store_deadend_info(EvaluationContext &) {}
+
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(EvaluationContext &, UnsolvabilityManager &) {
+        std::cerr << "Not implemented!" << std::endl;
+        utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
+    }
+    virtual void finish_unsolvability_proof() {}
+
+
 
     void report_value_for_initial_state(const EvaluationResult &result) const;
     void report_new_minimum_value(const EvaluationResult &result) const;

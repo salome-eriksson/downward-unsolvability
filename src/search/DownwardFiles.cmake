@@ -78,6 +78,7 @@ fast_downward_plugin(
         state_registry
         task_id
         task_proxy
+        unsolvability/unsolvabilitymanager
 
     DEPENDS CAUSAL_GRAPH INT_HASH_SET INT_PACKER ORDERED_SET SEGMENTED_VECTOR SUBSCRIBER SUCCESSOR_GENERATOR TASK_PROPERTIES
     CORE_PLUGIN
@@ -366,7 +367,7 @@ fast_downward_plugin(
     HELP "Eager search algorithm"
     SOURCES
         search_engines/eager_search
-    DEPENDS NULL_PRUNING_METHOD ORDERED_SET SUCCESSOR_GENERATOR
+    DEPENDS NULL_PRUNING_METHOD ORDERED_SET SUCCESSOR_GENERATOR CUDD_INTERFACE
     DEPENDENCY_ONLY
 )
 
@@ -460,12 +461,21 @@ fast_downward_plugin(
 )
 
 fast_downward_plugin(
+    NAME CUDD_INTERFACE
+    HELP "Interface to the CUDD BDD library"
+    SOURCES
+        unsolvability/cudd_interface.cc
+    DEPENDENCY_ONLY
+)
+
+fast_downward_plugin(
     NAME RELAXATION_HEURISTIC
     HELP "The base class for relaxation heuristics"
     SOURCES
         heuristics/array_pool
         heuristics/relaxation_heuristic
     DEPENDENCY_ONLY
+    DEPENDS CUDD_INTERFACE
 )
 
 fast_downward_plugin(
@@ -678,7 +688,7 @@ fast_downward_plugin(
         merge_and_shrink/transition_system
         merge_and_shrink/types
         merge_and_shrink/utils
-    DEPENDS PRIORITY_QUEUES EQUIVALENCE_RELATION SCCS TASK_PROPERTIES VARIABLE_ORDER_FINDER
+    DEPENDS PRIORITY_QUEUES EQUIVALENCE_RELATION SCCS TASK_PROPERTIES VARIABLE_ORDER_FINDER CUDD_INTERFACE
 )
 
 fast_downward_plugin(

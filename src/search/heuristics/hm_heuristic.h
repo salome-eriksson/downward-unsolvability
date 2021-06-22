@@ -2,11 +2,14 @@
 #define HEURISTICS_HM_HEURISTIC_H
 
 #include "../heuristic.h"
+#include "../evaluation_context.h"
 
 #include <algorithm>
+#include <forward_list>
 #include <iostream>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace options {
@@ -33,6 +36,14 @@ class HMHeuristic : public Heuristic {
     std::map<Tuple, int> hm_table;
     bool was_updated;
 
+    bool unsolvability_setup;
+    std::vector<std::vector<int>> fact_to_variable;
+
+    std::unordered_map<int,std::forward_list<const Tuple *>> unreachable_tuples;
+    int strips_varamount;
+    std::string mutexes;
+    int mutexamount;
+
     // auxiliary methods
     void init_hm_table(const Tuple &t);
     void update_hm_table();
@@ -57,6 +68,8 @@ class HMHeuristic : public Heuristic {
 
     void dump_table() const;
 
+    void setup_unsolvability_proof();
+
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 
@@ -64,6 +77,10 @@ public:
     explicit HMHeuristic(const options::Options &opts);
 
     virtual bool dead_ends_are_reliable() const override;
+
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }
 

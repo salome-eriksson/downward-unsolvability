@@ -19,6 +19,7 @@
 #include <cassert>
 #include <iostream>
 #include <utility>
+#include <unordered_map>
 
 using namespace std;
 using utils::ExitCode;
@@ -26,7 +27,8 @@ using utils::ExitCode;
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const options::Options &opts)
     : Heuristic(opts),
-      verbosity(opts.get<utils::Verbosity>("verbosity")) {
+      verbosity(opts.get<utils::Verbosity>("verbosity")),
+      bdd(nullptr), bdd_to_stateid(-1), setid(-1), k_set_dead(-1) {
     utils::g_log << "Initializing merge-and-shrink heuristic..." << endl;
     MergeAndShrinkAlgorithm algorithm(opts);
     FactoredTransitionSystem fts = algorithm.build_factored_transition_system(task_proxy);
@@ -111,6 +113,22 @@ void MergeAndShrinkHeuristic::extract_factors(FactoredTransitionSystem &fts) {
     if (verbosity >= utils::Verbosity::NORMAL) {
         utils::g_log << "Number of factors kept: " << num_factors_kept << endl;
     }
+
+
+    int amount_vars = task_proxy.get_variables().size();
+    variable_order.reserve(amount_vars);
+    //TODO: HACK - ask Silvan why we have a vector now
+    mas_representations[0]->fill_varorder(variable_order);
+
+    // fill variable order to contain all variables
+    // TODO: can we do this nicer?
+    for(int i = 0; i < amount_vars; ++i) {
+        if(find(variable_order.begin(), variable_order.end(), i) == variable_order.end()) {
+            variable_order.push_back(i);
+        }
+    }
+
+    cudd_manager = new CuddManager(task, variable_order);
 }
 
 int MergeAndShrinkHeuristic::compute_heuristic(const State &ancestor_state) {
@@ -126,6 +144,84 @@ int MergeAndShrinkHeuristic::compute_heuristic(const State &ancestor_state) {
     }
     return heuristic;
 }
+
+
+void MergeAndShrinkHeuristic::get_bdd() {
+    std::unordered_map<int, CuddBDD> bdd_map;
+    bdd_map.insert({0, CuddBDD(cudd_manager, false)});
+    bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
+    //TODO: HACK - ask Silvan why we have a vector now
+    bdd = mas_representations[0]->get_deadend_bdd(cudd_manager, bdd_map, true);
+}
+
+int MergeAndShrinkHeuristic::create_subcertificate(EvaluationContext &eval_context) {
+    if(bdd_to_stateid == -1) {
+        bdd_to_stateid = eval_context.get_state().get_id().get_value();
+    }
+    return bdd_to_stateid;
+}
+
+void MergeAndShrinkHeuristic::write_subcertificates(const string &filename) {
+    if(bdd_to_stateid > -1) {
+        get_bdd();
+        std::vector<CuddBDD> bddvec(1,*bdd);
+        std::vector<int> stateidvec(1,bdd_to_stateid);
+        cudd_manager->dumpBDDs_certificate(bddvec, stateidvec, filename);
+    } else {
+        std::ofstream cert_stream;
+        cert_stream.open(filename);
+        cert_stream.close();
+    }
+}
+
+std::vector<int> MergeAndShrinkHeuristic::get_varorder() {
+    return variable_order;
+}
+
+std::pair<int,int> MergeAndShrinkHeuristic::get_set_and_deadknowledge_id(
+        EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
+    if(setid == -1) {
+        get_bdd();
+        std::vector<CuddBDD>bdds(1,*bdd);
+        delete bdd;
+
+        std::stringstream ss;
+        ss << unsolvmanager.get_directory() << this << ".bdd";
+        bdd_filename = ss.str();
+        cudd_manager->dumpBDDs(bdds, bdd_filename);
+
+        setid = unsolvmanager.get_new_setid();
+
+        std::ofstream &certstream = unsolvmanager.get_stream();
+
+        certstream << "e " << setid << " b " << bdd_filename << " 0 ;\n";
+        int progid = unsolvmanager.get_new_setid();
+        certstream << "e " << progid << " p " << setid << " 0" << "\n";
+        int union_set_empty = unsolvmanager.get_new_setid();;
+        certstream << "e " << union_set_empty << " u "
+                   << setid << " " << unsolvmanager.get_emptysetid() << "\n";
+
+        int k_prog = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b2\n";
+
+        int set_and_goal = unsolvmanager.get_new_setid();
+        certstream << "e " << set_and_goal << " i "
+                   << setid << " " << unsolvmanager.get_goalsetid() << "\n";
+        int k_set_and_goal_empty = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_set_and_goal_empty << " s "
+                   << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b1\n";
+        int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
+                   << " sd " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
+
+        k_set_dead = unsolvmanager.get_new_knowledgeid();
+        certstream << "k " << k_set_dead << " d " << setid << " pg " << k_prog << " "
+                   << unsolvmanager.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
+    }
+
+    return std::make_pair(setid, k_set_dead);
+}
+
 
 static shared_ptr<Heuristic> _parse(options::OptionParser &parser) {
     parser.document_synopsis(
