@@ -132,7 +132,7 @@ void EagerSearch::initialize() {
                    unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             open_list->store_deadend_info(eval_context);
         }
-        cout << "Initial state is a dead end." << endl;
+        utils::g_log << "Initial state is a dead end." << endl;
     } else {
         if (search_progress.check_progress(eval_context))
             statistics.print_checkpoint_line(0);
