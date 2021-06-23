@@ -175,9 +175,6 @@ void SearchEngine::add_succ_order_options(OptionParser &parser) {
 void SearchEngine::add_unsolvability_options(OptionParser &parser) {
     vector<string> verification_types;
     verification_types.push_back("NONE");
-    verification_types.push_back("CERTIFICATE");
-    verification_types.push_back("CERTIFICATE_FASTDUMP");
-    verification_types.push_back("CERTIFICATE_NOHINTS");
     verification_types.push_back("PROOF");
     verification_types.push_back("PROOF_DISCARD");
     parser.add_enum_option<UnsolvabilityVerificationType>(

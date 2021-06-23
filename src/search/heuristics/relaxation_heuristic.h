@@ -70,7 +70,6 @@ protected:
     bool unsolv_subsumption_check;
     CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
-    std::vector<int> bdd_to_stateid;
     std::unordered_map<int,int> state_to_bddindex;
     /*
       the first int is a setid which corresponds to the BDD in the bdds vector
@@ -134,10 +133,6 @@ public:
     explicit RelaxationHeuristic(const options::Options &options);
 
     virtual bool dead_ends_are_reliable() const override;
-
-    // functions related to unsolvability certificate generation
-    virtual int create_subcertificate(EvaluationContext &eval_context) override;
-    virtual void write_subcertificates(const std::string &filename) override;
 
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;

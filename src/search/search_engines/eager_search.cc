@@ -124,11 +124,7 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
-        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP ||
-                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
-            open_list->create_subcertificate(eval_context);
-        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
+        if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
                    unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             open_list->store_deadend_info(eval_context);
         }
@@ -146,11 +142,6 @@ void EagerSearch::initialize() {
     print_initial_evaluator_values(eval_context);
 
     pruning_method->initialize(task);
-
-    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-            unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-        unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
-    }
 }
 
 void EagerSearch::print_statistics() const {
@@ -163,11 +154,6 @@ SearchStatus EagerSearch::step() {
     tl::optional<SearchNode> node;
     while (true) {
         if (open_list->empty()) {
-            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                    unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP ||
-                    unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
-                write_unsolvability_certificate();
-            }
             if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
                     unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
                 write_unsolvability_proof();
@@ -250,20 +236,10 @@ SearchStatus EagerSearch::step() {
                                     preferred_operators);
     }
 
-    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-            unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-        unsolvability_certificate_hints << s.get_id().get_value() << " " << applicable_ops.size();
-    }
-
     for (OperatorID op_id : applicable_ops) {
         OperatorProxy op = task_proxy.get_operators()[op_id];
-        if ((node->get_real_g() + op.get_cost()) >= bound) {
-            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                    unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-                unsolvability_certificate_hints << " " <<  op.get_id() << " -1";
-            }
+        if ((node->get_real_g() + op.get_cost()) >= bound)
             continue;
-        }
 
         State succ_state = state_registry.get_successor_state(s, op);
         statistics.inc_generated();
@@ -276,18 +252,8 @@ SearchStatus EagerSearch::step() {
         }
 
         // Previously encountered dead end. Don't re-evaluate.
-        if (succ_node.is_dead_end()) {
-            if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                    unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-                EvaluationContext succ_eval_context(
-                    succ_state, succ_node.get_g(), is_preferred, &statistics);
-                // TODO: need to call something in order for the state to actually be evaluated, but this might be inefficient
-                open_list->is_dead_end(succ_eval_context);
-                int hint = open_list->create_subcertificate(succ_eval_context);
-                unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
-            }
+        if (succ_node.is_dead_end())
             continue;
-        }
 
         if (succ_node.is_new()) {
             // We have not seen this state before.
@@ -303,13 +269,7 @@ SearchStatus EagerSearch::step() {
             statistics.inc_evaluated_states();
 
             if (open_list->is_dead_end(succ_eval_context)) {
-                if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                        unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-                    int hint = open_list->create_subcertificate(succ_eval_context);
-                    unsolvability_certificate_hints << " " << op.get_id() << " " << hint;
-                } else if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
-                    open_list->create_subcertificate(succ_eval_context);
-                } else if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
                           unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
                     open_list->store_deadend_info(succ_eval_context);
                 }
@@ -367,14 +327,6 @@ SearchStatus EagerSearch::step() {
                 succ_node.update_parent(*node, op, get_adjusted_cost(op));
             }
         }
-        if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-                unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-            unsolvability_certificate_hints << " " << op.get_id() << " " << succ_state.get_id().get_value();
-        }
-    }
-    if(unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
-            unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-        unsolvability_certificate_hints << "\n";
     }
 
     return IN_PROGRESS;
@@ -409,150 +361,6 @@ void EagerSearch::update_f_value_statistics(EvaluationContext &eval_context) {
 void add_options_to_parser(OptionParser &parser) {
     SearchEngine::add_pruning_option(parser);
     SearchEngine::add_options_to_parser(parser);
-}
-
-void dump_statebdd(const State &s, std::ofstream &statebdd_file,
-                   int amount_vars, const std::vector<std::vector<int>> &fact_to_var) {
-    // first dump amount of bdds (=1) and index
-    statebdd_file << "1 " << s.get_id().get_value() << "\n";
-
-    // header
-    statebdd_file << ".ver DDDMP-2.0\n";
-    statebdd_file << ".mode A\n";
-    statebdd_file << ".varinfo 0\n";
-    statebdd_file << ".nnodes " << amount_vars+1 << "\n";
-    statebdd_file << ".nvars " << amount_vars << "\n";
-    statebdd_file << ".nsuppvars " << amount_vars << "\n";
-    statebdd_file << ".ids";
-    for(int i = 0; i < amount_vars; ++i) {
-        statebdd_file << " " << i;
-    }
-    statebdd_file << "\n";
-    statebdd_file << ".permids";
-    for(int i = 0; i < amount_vars; ++i) {
-        statebdd_file << " " << i;
-    }
-    statebdd_file << "\n";
-    statebdd_file << ".nroots 1\n";
-    statebdd_file << ".rootids -" << amount_vars+1 << "\n";
-    statebdd_file << ".nodes\n";
-
-    // nodes
-    // TODO: this is a huge mess because only "false" arcs can be minus
-    // We start with a negative root, and if the last var is false, we can
-    // put a minus in the last arc and reach true in this way.
-    // if the last var is true, we assume that the second last is false (because FDR)
-    // and thus put a minus on the second last arc which means the last node is "positive"
-    std::vector<bool> state_vars(amount_vars, false);
-    for (FactProxy fact : s) {
-        state_vars[fact_to_var.at(fact.get_variable().get_id()).at(fact.get_value())] = true;
-    }
-    assert(!state_vars[amount_vars-1] || !state_vars[amount_vars-2]);
-    bool last_true = state_vars[amount_vars-1];
-    int var = amount_vars-1;
-
-    statebdd_file << "1 T 1 0 0\n";
-    statebdd_file << "2 " << var << " " << var << " 1 -1\n";
-    var--;
-    statebdd_file << "3 " << var << " " << var << " ";
-    if(last_true) {
-        statebdd_file << "1 -2\n";
-    } else if(state_vars[var]) {
-        statebdd_file << "2 1\n";
-    } else {
-        statebdd_file << "1 2\n";
-    }
-    var--;
-
-    for(int i = 4; i <= amount_vars+1; ++i) {
-        statebdd_file << i << " " << var << " " << var << " ";
-        if(state_vars[var]) {
-            statebdd_file << i-1 << " 1\n";
-        } else {
-            statebdd_file << "1 " << i-1 << "\n";
-        }
-        var--;
-    }
-    statebdd_file << ".end\n";
-}
-
-void EagerSearch::write_unsolvability_certificate() {
-    if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
-        unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
-    }
-    unsolvability_certificate_hints << "end hints";
-    unsolvability_certificate_hints.close();
-
-    double writing_start = utils::g_timer();
-    std::string hcerts_filename = unsolvability_directory + "h_cert.bdd";
-    open_list->write_subcertificates(hcerts_filename);
-
-    std::vector<int> varorder = open_list->get_varorder();
-    if(varorder.empty()) {
-        varorder.resize(task_proxy.get_variables().size());
-        for(size_t i = 0; i < varorder.size(); ++i) {
-            varorder[i] = i;
-        }
-    }
-    std::vector<std::vector<int>> fact_to_var(varorder.size(), std::vector<int>());
-    int varamount = 0;
-    for(size_t i = 0; i < varorder.size(); ++i) {
-        int var = varorder[i];
-        fact_to_var[var].resize(task_proxy.get_variables()[var].get_domain_size());
-        for(int j = 0; j < task_proxy.get_variables()[var].get_domain_size(); ++j) {
-            fact_to_var[var][j] = varamount++;
-        }
-    }
-
-    std::string statebdd_file = unsolvability_directory + "states.bdd";
-    if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-        std::ofstream stream;
-        stream.open(statebdd_file);
-        for(const StateID id : state_registry) {
-            // dump bdds of closed states
-            const State &state = state_registry.lookup_state(id);
-            if(search_space.get_node(state).is_closed()) {
-                dump_statebdd(state, stream, varamount, fact_to_var);
-            }
-        }
-        stream.close();
-    } else {
-        std::vector<CuddBDD> statebdds(0);
-        std::vector<int> stateids(0);
-        int expanded = statistics.get_expanded();
-        CuddManager cudd_manager(task, varorder);
-        if (expanded > 0) {
-            statebdds.reserve(expanded);
-            stateids.reserve(expanded);
-            for (const StateID id : state_registry) {
-                const State &state = state_registry.lookup_state(id);
-                if(search_space.get_node(state).is_closed()) {
-                    stateids.push_back(id.get_value());
-                    statebdds.push_back(CuddBDD(&cudd_manager, state));
-                }
-            }
-        }
-        cudd_manager.dumpBDDs_certificate(statebdds, stateids, statebdd_file);
-    }
-
-    // there is currently no safeguard that these are the actual names used
-    std::ofstream cert_file;
-    cert_file.open(unsolvability_directory + "certificate.txt");
-    cert_file << "certificate-type:disjunctive:1\n";
-    cert_file << "bdd-files:2\n";
-    cert_file << unsolvability_directory << "states.bdd\n";
-    cert_file << unsolvability_directory << "h_cert.bdd\n";
-    cert_file << "hints:" << unsolvability_directory << "hints.txt\n";
-    cert_file.close();
-
-    /*
-      Writing the task file at the end minimizes the chances that both task and
-      certificate file are there but the planner could not finish writing them.
-     */
-    write_unsolvability_task_file(varorder);
-    double writing_end = utils::g_timer();
-    std::cout << "Time for writing unsolvability certificate: " << writing_end - writing_start << std::endl;
-
 }
 
 void EagerSearch::write_unsolvability_proof() {

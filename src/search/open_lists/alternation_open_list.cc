@@ -40,10 +40,6 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
 
-    virtual int create_subcertificate(EvaluationContext &eval_context) override;
-    virtual void write_subcertificates(const std::string &filename) override;
-    virtual std::vector<int> get_varorder() override;
-
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<int,int> get_set_and_deadknowledge_id(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
@@ -134,38 +130,6 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
         if (sublist->is_reliable_dead_end(eval_context))
             return true;
     return false;
-}
-
-template<class Entry>
-int AlternationOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
-    for (const auto &sublist : open_lists) {
-        if(sublist->is_dead_end(eval_context)) {
-            return sublist->create_subcertificate(eval_context);
-        }
-    }
-    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
-    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-}
-
-template<class Entry>
-void AlternationOpenList<Entry>::write_subcertificates(const std::string &filename) {
-    for (const auto &sublist : open_lists) {
-        sublist->write_subcertificates(filename);
-    }
-}
-
-template<class Entry>
-std::vector<int> AlternationOpenList<Entry>::get_varorder() {
-    std::vector<int> varorder;
-    for (const auto &sublist : open_lists) {
-        if(varorder.empty()) {
-            varorder = sublist->get_varorder();
-        } else if(varorder != sublist->get_varorder()) {
-            std::cerr << "Different varorders in certificate!" << std::endl;
-            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-        }
-    }
-    return varorder;
 }
 
 template<class Entry>

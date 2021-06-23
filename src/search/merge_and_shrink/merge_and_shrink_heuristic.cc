@@ -154,30 +154,6 @@ void MergeAndShrinkHeuristic::get_bdd() {
     bdd = mas_representations[0]->get_deadend_bdd(cudd_manager, bdd_map, true);
 }
 
-int MergeAndShrinkHeuristic::create_subcertificate(EvaluationContext &eval_context) {
-    if(bdd_to_stateid == -1) {
-        bdd_to_stateid = eval_context.get_state().get_id().get_value();
-    }
-    return bdd_to_stateid;
-}
-
-void MergeAndShrinkHeuristic::write_subcertificates(const string &filename) {
-    if(bdd_to_stateid > -1) {
-        get_bdd();
-        std::vector<CuddBDD> bddvec(1,*bdd);
-        std::vector<int> stateidvec(1,bdd_to_stateid);
-        cudd_manager->dumpBDDs_certificate(bddvec, stateidvec, filename);
-    } else {
-        std::ofstream cert_stream;
-        cert_stream.open(filename);
-        cert_stream.close();
-    }
-}
-
-std::vector<int> MergeAndShrinkHeuristic::get_varorder() {
-    return variable_order;
-}
-
 std::pair<int,int> MergeAndShrinkHeuristic::get_set_and_deadknowledge_id(
         EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
     if(setid == -1) {

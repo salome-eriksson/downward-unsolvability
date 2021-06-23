@@ -36,10 +36,6 @@ class MergeAndShrinkHeuristic : public Heuristic {
     int k_set_dead;
     std::string bdd_filename;
 
-    virtual int create_subcertificate(EvaluationContext &eval_context) override;
-    virtual void write_subcertificates(const std::string &filename) override;
-    virtual std::vector<int> get_varorder() override;
-
     void get_bdd();
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
