@@ -59,7 +59,7 @@ public:
     virtual void clear() override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+    virtual std::pair<int,Judgment> get_setid_and_deadjudgment(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 };
@@ -131,10 +131,10 @@ void EpsilonGreedyOpenList<Entry>::store_deadend_info(EvaluationContext &eval_co
 }
 
 template<class Entry>
-std::pair<int,int> EpsilonGreedyOpenList<Entry>::get_set_and_deadknowledge_id(
+std::pair<int,Judgment> EpsilonGreedyOpenList<Entry>::get_setid_and_deadjudgment(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
-        return evaluator->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
+        return evaluator->get_setid_and_deadjudment(eval_context, unsolvmanager);
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);

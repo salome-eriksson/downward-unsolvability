@@ -305,7 +305,7 @@ void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     unreachable_tuples.insert({eval_context.get_state().get_id().get_value(), std::move(tuples)});
 }
 
-std::pair<int,int> HMHeuristic::get_set_and_deadknowledge_id(
+std::pair<int,Judgment> HMHeuristic::get_setid_and_deadjudment(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
 
     int clauseamount = mutexamount;
@@ -323,30 +323,21 @@ std::pair<int,int> HMHeuristic::get_set_and_deadknowledge_id(
     certstream << "e " << setid << " h p cnf " << strips_varamount << " " << clauseamount << " ";
     certstream << mutexes << tuples.str() << ";\n";
 
-    int progid = unsolvmanager.get_new_setid();
-    certstream << "e " << progid << " p " << setid << " 0" << "\n";
-    int union_set_empty = unsolvmanager.get_new_setid();;
-    certstream << "e " << union_set_empty << " u "
+    int progression = unsolvmanager.get_new_setid();
+    certstream << "e " << progression << " p " << setid << " 0" << "\n";
+    int union_with_empty = unsolvmanager.get_new_setid();;
+    certstream << "e " << union_with_empty << " u "
                << setid << " " << unsolvmanager.get_emptysetid() << "\n";
-
-    int k_prog = unsolvmanager.get_new_knowledgeid();
-    certstream << "k " << k_prog << " s " << progid << " " << union_set_empty << " b2\n";
-
-    int set_and_goal = unsolvmanager.get_new_setid();
-    certstream << "e " << set_and_goal << " i "
+    int goal_intersection = unsolvmanager.get_new_setid();
+    certstream << "e " << goal_intersection << " i "
                << setid << " " << unsolvmanager.get_goalsetid() << "\n";
-    int k_set_and_goal_empty = unsolvmanager.get_new_knowledgeid();
-    certstream << "k " << k_set_and_goal_empty << " s "
-               << set_and_goal << " " << unsolvmanager.get_emptysetid() << " b1\n";
-    int k_set_and_goal_dead = unsolvmanager.get_new_knowledgeid();
-    certstream << "k " << k_set_and_goal_dead << " d " << set_and_goal
-               << " sd " << k_set_and_goal_empty << " " << unsolvmanager.get_k_empty_dead() << "\n";
 
-    int k_set_dead = unsolvmanager.get_new_knowledgeid();
-    certstream << "k " << k_set_dead << " d " << setid << " pg " << k_prog << " "
-               << unsolvmanager.get_k_empty_dead() << " " << k_set_and_goal_dead << "\n";
-
-    return std::make_pair(setid, k_set_dead);
+    Judgment empty_dead = unsolvmanager.apply_rule_ed();
+    Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
+    Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, unsolvmanager.get_emptysetid(), "b1");
+    Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
+    Judgment set_dead = unsolvmanager.apply_rule_pg(setid, progression_closed, empty_dead, goal_intersection_dead);
+    return std::make_pair(setid, set_dead);
 }
 
 

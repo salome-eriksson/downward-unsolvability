@@ -75,7 +75,7 @@ protected:
       the first int is a setid which corresponds to the BDD in the bdds vector
       the second int is a knowledgeid which corresponds to the knowledge that setid is dead
      */
-    std::vector<std::pair<int,int>> set_and_knowledge_ids;
+    std::vector<std::pair<int,Judgment>> set_and_knowledge_ids;
     std::string bdd_filename;
     bool unsolvability_setup;
 
@@ -136,7 +136,7 @@ public:
 
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+    virtual std::pair<int,Judgment> get_setid_and_deadjudment(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 };

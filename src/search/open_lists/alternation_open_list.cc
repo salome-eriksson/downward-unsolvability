@@ -41,7 +41,7 @@ public:
         EvaluationContext &eval_context) const override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+    virtual std::pair<int,Judgment> get_setid_and_deadjudgment(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 };
@@ -142,11 +142,11 @@ void AlternationOpenList<Entry>::store_deadend_info(EvaluationContext &eval_cont
 }
 
 template<class Entry>
-std::pair<int,int> AlternationOpenList<Entry>::get_set_and_deadknowledge_id(
+std::pair<int,Judgment> AlternationOpenList<Entry>::get_setid_and_deadjudgment(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const auto &sublist : open_lists) {
         if(sublist->is_dead_end(eval_context)) {
-            return sublist->get_set_and_deadknowledge_id(eval_context, unsolvmanager);
+            return sublist->get_setid_and_deadjudgment(eval_context, unsolvmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;

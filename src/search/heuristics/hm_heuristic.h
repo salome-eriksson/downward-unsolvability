@@ -79,7 +79,7 @@ public:
     virtual bool dead_ends_are_reliable() const override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+    virtual std::pair<int,Judgment> get_setid_and_deadjudment(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }

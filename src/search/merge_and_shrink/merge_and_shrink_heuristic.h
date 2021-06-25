@@ -33,7 +33,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
     int bdd_to_stateid;
 
     int setid;
-    int k_set_dead;
+    Judgment set_dead;
     std::string bdd_filename;
 
     void get_bdd();
@@ -44,7 +44,7 @@ public:
 
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,int> get_set_and_deadknowledge_id(
+    virtual std::pair<int,Judgment> get_setid_and_deadjudment(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }
