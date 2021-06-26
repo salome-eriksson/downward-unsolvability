@@ -276,18 +276,15 @@ void HMHeuristic::setup_unsolvability_proof() {
         }
     }
 
-    mutexamount = 0;
-    std::stringstream ss;
+    // store all mutex information in clause form
     for(int i = 0; i < varamount; ++i) {
         int domsize = task_proxy.get_variables()[i].get_domain_size();
         for(int j = 0; j < domsize-1; ++j) {
             for(int k = j+1; k < domsize; ++k) {
-                ss << "-" << fact_to_variable[i][j] << " -" << fact_to_variable[i][k] << " 0 ";
-                mutexamount++;
+                mutexes.push_back({-fact_to_variable[i][j], -fact_to_variable[i][k]});
             }
         }
     }
-    mutexes = ss.str();
     unsolvability_setup = true;
 }
 
@@ -305,39 +302,34 @@ void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     unreachable_tuples.insert({eval_context.get_state().get_id().get_value(), std::move(tuples)});
 }
 
-std::pair<int,Judgment> HMHeuristic::get_setid_and_deadjudment(
+std::pair<SetExpression,Judgment> HMHeuristic::get_dead_end_justification(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
 
-    int clauseamount = mutexamount;
-    std::stringstream tuples;
+    std::vector<std::vector<int>> clauses = mutexes;
+    clauses.reserve(mutexes.size() + unreachable_tuples.size());
     for(const Tuple * tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
+        std::vector<int> clause;
+        clause.reserve(tuple->size());
         for(size_t i = 0; i < tuple->size(); ++i) {
-            tuples << "-" << fact_to_variable[tuple->at(i).var][tuple->at(i).value] << " ";
+            const FactPair &fact = tuple->at(i);
+            clause.push_back(-fact_to_variable[fact.var][fact.value]);
         }
-        tuples << "0 ";
-        clauseamount++;
+        clauses.push_back(clause);
     }
 
-    int setid = unsolvmanager.get_new_setid();
-    std::ofstream &certstream = unsolvmanager.get_stream();
-    certstream << "e " << setid << " h p cnf " << strips_varamount << " " << clauseamount << " ";
-    certstream << mutexes << tuples.str() << ";\n";
-
-    int progression = unsolvmanager.get_new_setid();
-    certstream << "e " << progression << " p " << setid << " 0" << "\n";
-    int union_with_empty = unsolvmanager.get_new_setid();;
-    certstream << "e " << union_with_empty << " u "
-               << setid << " " << unsolvmanager.get_emptysetid() << "\n";
-    int goal_intersection = unsolvmanager.get_new_setid();
-    certstream << "e " << goal_intersection << " i "
-               << setid << " " << unsolvmanager.get_goalsetid() << "\n";
+    SetExpression set = unsolvmanager.define_horn_formula(strips_varamount, clauses);
+    SetExpression progression = unsolvmanager.define_set_progression(set, 0);
+    SetExpression empty_set = unsolvmanager.get_emptyset();
+    SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
+    SetExpression goal_set = unsolvmanager.get_goalset();
+    SetExpression goal_intersection = unsolvmanager.define_set_intersection(set, goal_set);
 
     Judgment empty_dead = unsolvmanager.apply_rule_ed();
     Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
-    Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, unsolvmanager.get_emptysetid(), "b1");
+    Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
     Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
-    Judgment set_dead = unsolvmanager.apply_rule_pg(setid, progression_closed, empty_dead, goal_intersection_dead);
-    return std::make_pair(setid, set_dead);
+    Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
+    return std::make_pair(set, set_dead);
 }
 
 

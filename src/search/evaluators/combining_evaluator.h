@@ -44,7 +44,7 @@ public:
         std::set<Evaluator *> &evals) override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,Judgment> get_setid_and_deadjudment(
+    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }

@@ -57,7 +57,7 @@ public:
         EvaluationContext &eval_context) const override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,Judgment> get_setid_and_deadjudgment(
+    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
     virtual void finish_unsolvability_proof() override;
 
@@ -236,11 +236,11 @@ void ParetoOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) 
 }
 
 template<class Entry>
-std::pair<int,Judgment> ParetoOpenList<Entry>::get_setid_and_deadjudgment(
+std::pair<SetExpression,Judgment> ParetoOpenList<Entry>::get_dead_end_justification(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
         if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
-            return evaluator->get_setid_and_deadjudment(eval_context, unsolvmanager);
+            return evaluator->get_dead_end_justification(eval_context, unsolvmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;

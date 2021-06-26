@@ -338,43 +338,34 @@ void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     state_to_bddindex.insert({eval_context.get_state().get_id().get_value(), bddindex});
 }
 
-std::pair<int, Judgment> RelaxationHeuristic::get_setid_and_deadjudment(
+std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justification(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
-    if (set_and_knowledge_ids.empty()) {
+    if (knowledge_for_bdd.empty()) {
         std::stringstream ss;
         ss << unsolvmanager.get_directory() << this << ".bdd";
         bdd_filename = ss.str();
-        set_and_knowledge_ids.reserve(bdds.size());
-        //set_and_knowledge_ids.resize(bdds.size(), {-1,-1});
     }
     int bddindex = state_to_bddindex[eval_context.get_state().get_id().get_value()];
     assert(bddindex >= 0);
-    std::pair<int,Judgment> &ids = set_and_knowledge_ids[bddindex];
+    auto entry = knowledge_for_bdd.find(bddindex);
 
-    if(ids.first == -1) {
-        int setid = unsolvmanager.get_new_setid();
-
-        std::ofstream &certstream = unsolvmanager.get_stream();
-        certstream << "e " << setid << " b " << bdd_filename << " " << bddindex << " ;\n";
-        int progression = unsolvmanager.get_new_setid();
-        certstream << "e " << progression << " p " << setid << " 0" << "\n";
-        int union_with_empty = unsolvmanager.get_new_setid();;
-        certstream << "e " << union_with_empty << " u "
-                   << setid << " " << unsolvmanager.get_emptysetid() << "\n";
-        int goal_intersection = unsolvmanager.get_new_setid();
-        certstream << "e " << goal_intersection << " i "
-                   << setid << " " << unsolvmanager.get_goalsetid() << "\n";
+    if(entry == knowledge_for_bdd.end()) {
+        SetExpression set = unsolvmanager.define_bdd(bddindex, bdd_filename, bdds[bddindex]);
+        SetExpression progression = unsolvmanager.define_set_progression(set, 0);
+        SetExpression empty_set = unsolvmanager.get_emptyset();
+        SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
+        SetExpression goal_set = unsolvmanager.get_goalset();
+        SetExpression goal_intersection = unsolvmanager.define_set_intersection(set, goal_set);
 
         Judgment empty_dead = unsolvmanager.apply_rule_ed();
         Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
-        Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, unsolvmanager.get_emptysetid(), "b1");
+        Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
         Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
-        Judgment set_dead = unsolvmanager.apply_rule_pg(setid, progression_closed, empty_dead, goal_intersection_dead);
+        Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
 
-        ids.first = setid;
-        ids.second = set_dead;
+        entry = knowledge_for_bdd.insert(std::make_pair(bddindex, std::make_pair(set, set_dead))).first;
     }
-    return ids;
+    return entry->second;
 }
 
 void RelaxationHeuristic::finish_unsolvability_proof() {

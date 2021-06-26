@@ -29,12 +29,9 @@ class MergeAndShrinkHeuristic : public Heuristic {
     CuddManager* cudd_manager;
     std::vector<int> variable_order;
     CuddBDD *bdd;
-
-    int bdd_to_stateid;
-
-    int setid;
-    Judgment set_dead;
     std::string bdd_filename;
+    std::pair<SetExpression, Judgment> set_and_dead_knowledge;
+    bool deadends_shown_dead;
 
     void get_bdd();
 protected:
@@ -44,7 +41,7 @@ public:
 
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<int,Judgment> get_setid_and_deadjudment(
+    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }

@@ -367,7 +367,6 @@ void EagerSearch::write_unsolvability_proof() {
     double writing_start = utils::g_timer();
 
     UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
-    std::ofstream &certstream = unsolvmgr.get_stream();
     std::vector<int> varorder(task_proxy.get_variables().size());
     for(size_t i = 0; i < varorder.size(); ++i) {
         varorder[i] = i;
@@ -382,13 +381,12 @@ void EagerSearch::write_unsolvability_proof() {
         EvaluationContext eval_context(init_state,
                                        0,
                                        false, &statistics);
-        std::pair<int,Judgment> deadend =
-                open_list->get_setid_and_deadjudgment(eval_context, unsolvmgr);
-        int deadend_set = deadend.first;
+        std::pair<SetExpression,Judgment> deadend = open_list->get_dead_end_justification(eval_context, unsolvmgr);
+        SetExpression deadend_set = deadend.first;
         Judgment deadend_set_dead = deadend.second;
-
-        Judgment init_subset_deadend_set = unsolvmgr.make_statement(unsolvmgr.get_initsetid(), deadend_set, "b1");
-        Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initsetid(), init_subset_deadend_set, deadend_set_dead);
+        SetExpression initial_set = unsolvmgr.get_initset();
+        Judgment init_subset_deadend_set = unsolvmgr.make_statement(initial_set, deadend_set, "b1");
+        Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, init_subset_deadend_set, deadend_set_dead);
         unsolvmgr.apply_rule_ci(init_dead);
         open_list->finish_unsolvability_proof();
 
@@ -405,9 +403,9 @@ void EagerSearch::write_unsolvability_proof() {
     }
 
     struct MergeTreeEntry {
+        SetExpression set;
+        Judgment justification;
         int de_pos_begin;
-        int setid;
-        Judgment set_dead;
         int depth;
     };
 
@@ -431,7 +429,7 @@ void EagerSearch::write_unsolvability_proof() {
         fact_amount += task_proxy.get_variables()[varorder[i]].get_domain_size();
     }
 
-    for(const StateID id : state_registry) {
+    for(StateID id : state_registry) {
         const State &state = state_registry.lookup_state(id);
         CuddBDD statebdd = CuddBDD(&manager, state);
         if (search_space.get_node(state).is_dead_end()) {
@@ -442,27 +440,19 @@ void EagerSearch::write_unsolvability_proof() {
             EvaluationContext eval_context(state,
                                            0,
                                            false, &statistics);
-            std::pair<int,Judgment> deadend =
-                    open_list->get_setid_and_deadjudgment(eval_context, unsolvmgr);            
-            int deadend_set = deadend.first;
+            std::pair<SetExpression,Judgment> deadend =
+                    open_list->get_dead_end_justification(eval_context, unsolvmgr);
+            SetExpression dead_end_set = deadend.first;
             Judgment deadend_set_dead = deadend.second;
 
 
             // prove that an explicit set only containing dead end is dead
-            int expl_state_setid = unsolvmgr.get_new_setid();
-            certstream << "e " << expl_state_setid << " e ";
-            certstream << fact_amount << " ";
-            for (int i = 0; i < fact_amount; ++i) {
-                certstream << i << " ";
-            }
-            certstream << ": ";
-            unsolvmgr.dump_state(state);
-            certstream << " ;\n";
-            Judgment state_subset_deadend_set = unsolvmgr.make_statement(expl_state_setid, deadend_set, "b4");
-            Judgment state_dead = unsolvmgr.apply_rule_sd(expl_state_setid, state_subset_deadend_set, deadend_set_dead);
+            SetExpression state_set = unsolvmgr.define_explicit_set(fact_amount, state_registry, {id});
+            Judgment state_subset_dead_end_set = unsolvmgr.make_statement(state_set, dead_end_set, "b4");
+            Judgment state_dead = unsolvmgr.apply_rule_sd(state_set, state_subset_dead_end_set, deadend_set_dead);
+            merge_tree[mt_pos].set = state_set;
+            merge_tree[mt_pos].justification = state_dead;
             merge_tree[mt_pos].de_pos_begin = dead_ends.size()-1;
-            merge_tree[mt_pos].setid = expl_state_setid;
-            merge_tree[mt_pos].set_dead = state_dead;
             merge_tree[mt_pos].depth = 0;
             mt_pos++;
 
@@ -472,31 +462,30 @@ void EagerSearch::write_unsolvability_proof() {
                 MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
 
                 // show that implicit union between the two sets is dead
-                int implicit_union = unsolvmgr.get_new_setid();
-                certstream << "e " << implicit_union << " u "
-                           << mte_left.setid << " " << mte_right.setid << "\n";
-                Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.set_dead, mte_right.set_dead);
+                SetExpression implicit_union = unsolvmgr.define_set_union(mte_left.set, mte_right.set);
+                Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
 
                 // the left entry represents the merged entry while the right entry will be considered deleted
                 mte_left.depth++;
-                mte_left.setid = implicit_union;
-                mte_left.set_dead = implicit_union_dead;
+                mte_left.set = implicit_union;
+                mte_left.justification = implicit_union_dead;
                 mt_pos--;
             }
 
         } else if(search_space.get_node(state).is_closed()) {
             expanded.lor(statebdd);
         }
+        // TODO: this point of the code should never be reached, right? (either its a dead-end or closed)
     }
 
     std::vector<CuddBDD> bdds;
     std::string filename_search_bdds = unsolvmgr.get_directory() + "search.bdd";
-    int de_setid;
+    SetExpression  dead_end_set;
     Judgment deadends_dead;
 
     // no dead ends --> use empty set
     if(dead_ends.size() == 0) {
-        de_setid = unsolvmgr.get_emptysetid();
+        dead_end_set = unsolvmgr.get_emptyset();
         deadends_dead = unsolvmgr.apply_rule_ed();
     } else {
         // if the merge tree is not a complete binary tree, we first need to shrink it up to size 1
@@ -506,73 +495,46 @@ void EagerSearch::write_unsolvability_proof() {
             MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
 
             // show that implicit union between the two sets is dead
-            int implicit_union = unsolvmgr.get_new_setid();
-            certstream << "e " << implicit_union << " u "
-                       << mte_left.setid << " " << mte_right.setid << "\n";
-            Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.set_dead, mte_right.set_dead);
+            SetExpression implicit_union = unsolvmgr.define_set_union(mte_left.set, mte_right.set);
+            Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
             mt_pos--;
             merge_tree[mt_pos-1].depth++;
-            merge_tree[mt_pos-1].setid = implicit_union;
-            merge_tree[mt_pos-1].set_dead = implicit_union_dead;
+            merge_tree[mt_pos-1].set = implicit_union;
+            merge_tree[mt_pos-1].justification = implicit_union_dead;
         }
         bdds.push_back(dead);
 
         // build an explicit set containing all dead ends
-        int all_de_explicit = unsolvmgr.get_new_setid();
-        certstream << "e " << all_de_explicit << " e ";
-        certstream << fact_amount << " ";
-        for (int i = 0; i < fact_amount; ++i) {
-            certstream << i << " ";
-        }
-        certstream << ": ";
-        for(const StateID id : state_registry) {
-            const State &state = state_registry.lookup_state(id);
-            if (search_space.get_node(state).is_dead_end()) {
-                unsolvmgr.dump_state(state);
-                certstream << " ";
-            }
-        }
-        certstream << ";\n";
-
+        SetExpression all_dead_ends = unsolvmgr.define_explicit_set(fact_amount, state_registry, dead_ends);
         // show that all_de_explicit is a subset to the union of all dead ends and thus dead
-        Judgment expl_deadends_subset = unsolvmgr.make_statement(all_de_explicit, merge_tree[0].setid, "b1");
-        Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_de_explicit, expl_deadends_subset, merge_tree[0].set_dead);
-
+        Judgment expl_deadends_subset = unsolvmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
+        Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_dead_ends, expl_deadends_subset, merge_tree[0].justification);
         // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
-        int bdd_dead_setid = unsolvmgr.get_new_setid();
-        certstream << "e " << bdd_dead_setid << " b " << filename_search_bdds
-                   << " " << bdds.size()-1 << " ;\n";
+        SetExpression dead_ends_bdd = unsolvmgr.define_bdd(bdds.size()-1, filename_search_bdds, bdds[bdds.size()-1]);
+        Judgment bdd_subset_explicit = unsolvmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
+        Judgment bdd_dead = unsolvmgr.apply_rule_sd(dead_ends_bdd, bdd_subset_explicit, expl_deadends_dead);
 
-        Judgment bdd_subset_explicit = unsolvmgr.make_statement(bdd_dead_setid, all_de_explicit, "b4");
-        Judgment bdd_dead = unsolvmgr.apply_rule_sd(bdd_dead_setid, bdd_subset_explicit, expl_deadends_dead);
-
-        de_setid = bdd_dead_setid;
+        dead_end_set = dead_ends_bdd;
         deadends_dead = bdd_dead;
     }
 
     bdds.push_back(expanded);
 
     // show that expanded states only lead to themselves and dead states
-    int expanded_setid = unsolvmgr.get_new_setid();
-    certstream << "e " << expanded_setid << " b " << filename_search_bdds << " "
-               << bdds.size()-1 << " ;\n";
-    int expanded_progression_setid = unsolvmgr.get_new_setid();
-    certstream << "e " << expanded_progression_setid << " p " << expanded_setid << " 0\n";
-    int union_expanded_dead = unsolvmgr.get_new_setid();
-    certstream << "e " << union_expanded_dead << " u "
-               << expanded_setid << " " << de_setid << "\n";
-    int intersection_expanded_goal = unsolvmgr.get_new_setid();
-    certstream << "e " << intersection_expanded_goal << " i "
-               << expanded_setid << " " << unsolvmgr.get_goalsetid() << "\n";
+    SetExpression expanded_set = unsolvmgr.define_bdd(bdds.size()-1, filename_search_bdds, bdds[bdds.size()-1]);
+    SetExpression expanded_progressed = unsolvmgr.define_set_progression(expanded_set, 0);
+    SetExpression expanded_union_dead = unsolvmgr.define_set_union(expanded_set, dead_end_set);
+    SetExpression goal_set = unsolvmgr.get_goalset();
+    SetExpression goal_intersection = unsolvmgr.define_set_intersection(expanded_set, goal_set);
 
     Judgment empty_dead = unsolvmgr.apply_rule_ed();
-    Judgment progression_to_deadends = unsolvmgr.make_statement(expanded_progression_setid, union_expanded_dead, "b2");
-    Judgment goal_intersection_empty = unsolvmgr.make_statement(intersection_expanded_goal, unsolvmgr.get_emptysetid(), "b1");
-    Judgment goal_intersection_dead = unsolvmgr.apply_rule_sd(intersection_expanded_goal, goal_intersection_empty, empty_dead);
-    Judgment expanded_dead = unsolvmgr.apply_rule_pg(expanded_setid, progression_to_deadends, deadends_dead, goal_intersection_dead);
+    Judgment progression_to_deadends = unsolvmgr.make_statement(expanded_progressed, expanded_union_dead, "b2");
+    Judgment goal_intersection_empty = unsolvmgr.make_statement(goal_intersection, unsolvmgr.get_emptyset(), "b1");
+    Judgment goal_intersection_dead = unsolvmgr.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
+    Judgment expanded_dead = unsolvmgr.apply_rule_pg(expanded_set, progression_to_deadends, deadends_dead, goal_intersection_dead);
 
-    Judgment init_in_expanded = unsolvmgr.make_statement(unsolvmgr.get_initsetid(), expanded_setid, "b1");
-    Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initsetid(), init_in_expanded, expanded_dead);
+    Judgment init_in_expanded = unsolvmgr.make_statement(unsolvmgr.get_initset(), expanded_set, "b1");
+    Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initset(), init_in_expanded, expanded_dead);
     unsolvmgr.apply_rule_ci(init_dead);
 
     open_list->finish_unsolvability_proof();
