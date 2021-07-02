@@ -19,6 +19,7 @@
 #include <cassert>
 #include <iostream>
 #include <utility>
+#include <unordered_map>
 
 using namespace std;
 using utils::ExitCode;
@@ -26,7 +27,8 @@ using utils::ExitCode;
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const options::Options &opts)
     : Heuristic(opts),
-      verbosity(opts.get<utils::Verbosity>("verbosity")) {
+      verbosity(opts.get<utils::Verbosity>("verbosity")),
+      bdd(nullptr), deadends_shown_dead(false) {
     utils::g_log << "Initializing merge-and-shrink heuristic..." << endl;
     MergeAndShrinkAlgorithm algorithm(opts);
     FactoredTransitionSystem fts = algorithm.build_factored_transition_system(task_proxy);
@@ -111,6 +113,22 @@ void MergeAndShrinkHeuristic::extract_factors(FactoredTransitionSystem &fts) {
     if (verbosity >= utils::Verbosity::NORMAL) {
         utils::g_log << "Number of factors kept: " << num_factors_kept << endl;
     }
+
+
+    int amount_vars = task_proxy.get_variables().size();
+    variable_order.reserve(amount_vars);
+    //TODO: HACK - ask Silvan why we have a vector now
+    mas_representations[0]->fill_varorder(variable_order);
+
+    // fill variable order to contain all variables
+    // TODO: can we do this nicer?
+    for(int i = 0; i < amount_vars; ++i) {
+        if(find(variable_order.begin(), variable_order.end(), i) == variable_order.end()) {
+            variable_order.push_back(i);
+        }
+    }
+
+    cudd_manager = new CuddManager(task, variable_order);
 }
 
 int MergeAndShrinkHeuristic::compute_heuristic(const State &ancestor_state) {
@@ -126,6 +144,39 @@ int MergeAndShrinkHeuristic::compute_heuristic(const State &ancestor_state) {
     }
     return heuristic;
 }
+
+
+void MergeAndShrinkHeuristic::get_bdd() {
+    std::unordered_map<int, CuddBDD> bdd_map;
+    bdd_map.insert({0, CuddBDD(cudd_manager, false)});
+    bdd_map.insert({-1, CuddBDD(cudd_manager, true)});
+    //TODO: HACK - ask Silvan why we have a vector now
+    bdd = mas_representations[0]->get_deadend_bdd(cudd_manager, bdd_map, true);
+}
+
+std::pair<SetExpression,Judgment> MergeAndShrinkHeuristic::get_dead_end_justification(
+        EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
+    if(!deadends_shown_dead) {
+        get_bdd();
+        SetExpression set = unsolvmanager.define_bdd(*bdd);
+        SetExpression progression = unsolvmanager.define_set_progression(set, 0);
+        SetExpression empty_set = unsolvmanager.get_emptyset();
+        SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
+        SetExpression goal_set = unsolvmanager.get_goalset();
+        SetExpression goal_intersection = unsolvmanager.define_set_intersection(set, goal_set);
+
+        Judgment empty_dead = unsolvmanager.apply_rule_ed();
+        Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
+        Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
+        Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
+        Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
+
+        set_and_dead_knowledge = std::make_pair(set, set_dead);
+        deadends_shown_dead = true;
+    }
+    return set_and_dead_knowledge;
+}
+
 
 static shared_ptr<Heuristic> _parse(options::OptionParser &parser) {
     parser.document_synopsis(

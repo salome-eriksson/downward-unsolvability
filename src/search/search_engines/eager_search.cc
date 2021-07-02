@@ -11,6 +11,8 @@
 
 #include "../utils/logging.h"
 
+#include "../unsolvability/unsolvabilitymanager.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <memory>
@@ -23,15 +25,51 @@ namespace eager_search {
 EagerSearch::EagerSearch(const Options &opts)
     : SearchEngine(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
+      unsolv_type(opts.get<UnsolvabilityVerificationType>("unsolv_verification")),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_state_open_list()),
       f_evaluator(opts.get<shared_ptr<Evaluator>>("f_eval", nullptr)),
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
-      pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")) {
+      pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
+      unsolvability_directory(opts.get<std::string>("unsolv_directory")) {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
+
+    if(unsolv_type != UnsolvabilityVerificationType::NONE) {
+        if(unsolvability_directory.compare(".") == 0) {
+            unsolvability_directory = "";
+        }
+        // expand environment variables
+        size_t found = unsolvability_directory.find('$');
+        while(found != std::string::npos) {
+            size_t end = unsolvability_directory.find('/');
+            std::string envvar;
+            if(end == std::string::npos) {
+                envvar = unsolvability_directory.substr(found+1);
+            } else {
+                envvar = unsolvability_directory.substr(found+1,end-found-1);
+            }
+            // to upper case
+            for(size_t i = 0; i < envvar.size(); i++) {
+                envvar.at(i) = toupper(envvar.at(i));
+            }
+            std::string expanded = std::getenv(envvar.c_str());
+            unsolvability_directory.replace(found,envvar.length()+1,expanded);
+            found = unsolvability_directory.find('$');
+        }
+        if(!unsolvability_directory.empty() && !(unsolvability_directory.back() == '/')) {
+            unsolvability_directory += "/";
+        }
+        std::cout << "Generating unsolvability verification in "
+                  << unsolvability_directory << std::endl;
+        if (unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+            CuddManager::set_compact_proof(false);
+        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
+            CuddManager::set_compact_proof(true);
+        }
     }
 }
 
@@ -86,6 +124,10 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
+        if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                   unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+            open_list->store_deadend_info(eval_context);
+        }
         utils::g_log << "Initial state is a dead end." << endl;
     } else {
         if (search_progress.check_progress(eval_context))
@@ -112,6 +154,10 @@ SearchStatus EagerSearch::step() {
     tl::optional<SearchNode> node;
     while (true) {
         if (open_list->empty()) {
+            if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                    unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+                write_unsolvability_proof();
+            }
             utils::g_log << "Completely explored state space -- no solution!" << endl;
             return FAILED;
         }
@@ -223,6 +269,10 @@ SearchStatus EagerSearch::step() {
             statistics.inc_evaluated_states();
 
             if (open_list->is_dead_end(succ_eval_context)) {
+                if(unsolv_type == UnsolvabilityVerificationType::PROOF ||
+                          unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+                    open_list->store_deadend_info(succ_eval_context);
+                }
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
@@ -312,4 +362,270 @@ void add_options_to_parser(OptionParser &parser) {
     SearchEngine::add_pruning_option(parser);
     SearchEngine::add_options_to_parser(parser);
 }
+
+void EagerSearch::write_unsolvability_proof() {
+    double writing_start = utils::g_timer();
+
+    UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
+    std::vector<int> varorder(task_proxy.get_variables().size());
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        varorder[i] = i;
+    }
+
+    /*
+      TODO: asking if the initial node is new seems wrong, but that is
+      how the search handles a dead initial state
+     */
+    if(search_space.get_node(state_registry.get_initial_state()).is_new()) {
+        const State &init_state = state_registry.get_initial_state();
+        EvaluationContext eval_context(init_state,
+                                       0,
+                                       false, &statistics);
+        std::pair<SetExpression,Judgment> deadend = open_list->get_dead_end_justification(eval_context, unsolvmgr);
+        SetExpression deadend_set = deadend.first;
+        Judgment deadend_set_dead = deadend.second;
+        SetExpression initial_set = unsolvmgr.get_initset();
+        Judgment init_subset_deadend_set = unsolvmgr.make_statement(initial_set, deadend_set, "b1");
+        Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, init_subset_deadend_set, deadend_set_dead);
+        unsolvmgr.apply_rule_ci(init_dead);
+
+        /*
+          Writing the task file at the end minimizes the chances that both task and
+          proof file are there but the planner could not finish writing them.
+         */
+        write_unsolvability_task_file(varorder);
+
+        double writing_end = utils::g_timer();
+        std::cout << "Time for writing unsolvability proof: "
+                  << writing_end - writing_start << std::endl;
+        return;
+    }
+
+    struct MergeTreeEntry {
+        SetExpression set;
+        Judgment justification;
+        int de_pos_begin;
+        int depth;
+    };
+
+    CuddManager manager(task);
+    std::vector<StateID> dead_ends;
+    int dead_end_amount = statistics.get_dead_ends();
+    dead_ends.reserve(dead_end_amount);
+
+    std::vector<MergeTreeEntry> merge_tree;
+    if (dead_end_amount > 0) {
+        merge_tree.resize(ceil(log2(dead_end_amount+1)));
+    }
+    // mt_pos is the index of the first unused entry of merge_tree
+    int mt_pos = 0;
+
+    CuddBDD expanded = CuddBDD(&manager, false);
+    CuddBDD dead = CuddBDD(&manager, false);
+
+    int fact_amount = 0;
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        fact_amount += task_proxy.get_variables()[varorder[i]].get_domain_size();
+    }
+
+    for(StateID id : state_registry) {
+        const State &state = state_registry.lookup_state(id);
+        CuddBDD statebdd = CuddBDD(&manager, state);
+        if (search_space.get_node(state).is_dead_end()) {
+
+            dead.lor(statebdd);
+            dead_ends.push_back(id);
+
+            EvaluationContext eval_context(state,
+                                           0,
+                                           false, &statistics);
+            std::pair<SetExpression,Judgment> deadend =
+                    open_list->get_dead_end_justification(eval_context, unsolvmgr);
+            SetExpression dead_end_set = deadend.first;
+            Judgment deadend_set_dead = deadend.second;
+
+
+            // prove that an explicit set only containing dead end is dead
+            SetExpression state_set = unsolvmgr.define_explicit_set(fact_amount, state_registry, {id});
+            Judgment state_subset_dead_end_set = unsolvmgr.make_statement(state_set, dead_end_set, "b4");
+            Judgment state_dead = unsolvmgr.apply_rule_sd(state_set, state_subset_dead_end_set, deadend_set_dead);
+            merge_tree[mt_pos].set = state_set;
+            merge_tree[mt_pos].justification = state_dead;
+            merge_tree[mt_pos].de_pos_begin = dead_ends.size()-1;
+            merge_tree[mt_pos].depth = 0;
+            mt_pos++;
+
+            // merge the last 2 sets to a new one if they have the same depth in the merge tree
+            while(mt_pos > 1 && merge_tree[mt_pos-1].depth == merge_tree[mt_pos-2].depth) {
+                MergeTreeEntry &mte_left = merge_tree[mt_pos-2];
+                MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
+
+                // show that implicit union between the two sets is dead
+                SetExpression implicit_union = unsolvmgr.define_set_union(mte_left.set, mte_right.set);
+                Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
+
+                // the left entry represents the merged entry while the right entry will be considered deleted
+                mte_left.depth++;
+                mte_left.set = implicit_union;
+                mte_left.justification = implicit_union_dead;
+                mt_pos--;
+            }
+
+        } else if(search_space.get_node(state).is_closed()) {
+            expanded.lor(statebdd);
+        }
+        // TODO: this point of the code should never be reached, right? (either its a dead-end or closed)
+    }
+
+    std::vector<CuddBDD> bdds;
+    SetExpression  dead_end_set;
+    Judgment deadends_dead;
+
+    // no dead ends --> use empty set
+    if(dead_ends.size() == 0) {
+        dead_end_set = unsolvmgr.get_emptyset();
+        deadends_dead = unsolvmgr.apply_rule_ed();
+    } else {
+        // if the merge tree is not a complete binary tree, we first need to shrink it up to size 1
+        // TODO: this is copy paste from above...
+        while(mt_pos > 1) {
+            MergeTreeEntry &mte_left = merge_tree[mt_pos-2];
+            MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
+
+            // show that implicit union between the two sets is dead
+            SetExpression implicit_union = unsolvmgr.define_set_union(mte_left.set, mte_right.set);
+            Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
+            mt_pos--;
+            merge_tree[mt_pos-1].depth++;
+            merge_tree[mt_pos-1].set = implicit_union;
+            merge_tree[mt_pos-1].justification = implicit_union_dead;
+        }
+        bdds.push_back(dead);
+
+        // build an explicit set containing all dead ends
+        SetExpression all_dead_ends = unsolvmgr.define_explicit_set(fact_amount, state_registry, dead_ends);
+        // show that all_de_explicit is a subset to the union of all dead ends and thus dead
+        Judgment expl_deadends_subset = unsolvmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
+        Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_dead_ends, expl_deadends_subset, merge_tree[0].justification);
+        // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
+        SetExpression dead_ends_bdd = unsolvmgr.define_bdd(bdds[bdds.size()-1]);
+        Judgment bdd_subset_explicit = unsolvmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
+        Judgment bdd_dead = unsolvmgr.apply_rule_sd(dead_ends_bdd, bdd_subset_explicit, expl_deadends_dead);
+
+        dead_end_set = dead_ends_bdd;
+        deadends_dead = bdd_dead;
+    }
+
+    bdds.push_back(expanded);
+
+    // show that expanded states only lead to themselves and dead states
+    SetExpression expanded_set = unsolvmgr.define_bdd(bdds[bdds.size()-1]);
+    SetExpression expanded_progressed = unsolvmgr.define_set_progression(expanded_set, 0);
+    SetExpression expanded_union_dead = unsolvmgr.define_set_union(expanded_set, dead_end_set);
+    SetExpression goal_set = unsolvmgr.get_goalset();
+    SetExpression goal_intersection = unsolvmgr.define_set_intersection(expanded_set, goal_set);
+
+    Judgment empty_dead = unsolvmgr.apply_rule_ed();
+    Judgment progression_to_deadends = unsolvmgr.make_statement(expanded_progressed, expanded_union_dead, "b2");
+    Judgment goal_intersection_empty = unsolvmgr.make_statement(goal_intersection, unsolvmgr.get_emptyset(), "b1");
+    Judgment goal_intersection_dead = unsolvmgr.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
+    Judgment expanded_dead = unsolvmgr.apply_rule_pg(expanded_set, progression_to_deadends, deadends_dead, goal_intersection_dead);
+
+    Judgment init_in_expanded = unsolvmgr.make_statement(unsolvmgr.get_initset(), expanded_set, "b1");
+    Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initset(), init_in_expanded, expanded_dead);
+    unsolvmgr.apply_rule_ci(init_dead);
+
+    std::cout << "dumping bdds" << std::endl;
+
+    unsolvmgr.dump_BDDs();
+
+    std::cout << "done dumping bdds" << std::endl;
+
+    /*
+      Writing the task file at the end minimizes the chances that both task and
+      proof file are there but the planner could not finish writing them.
+     */
+    write_unsolvability_task_file(varorder);
+
+    double writing_end = utils::g_timer();
+    std::cout << "Time for writing unsolvability proof: "
+              << writing_end - writing_start << std::endl;
+}
+
+
+void EagerSearch::write_unsolvability_task_file(const std::vector<int> &varorder) {
+    assert(varorder.size() == task_proxy.get_variables().size());
+    std::vector<std::vector<int>> fact_to_var(varorder.size(), std::vector<int>());
+    int fact_amount = 0;
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        int var = varorder[i];
+        fact_to_var[var].resize(task_proxy.get_variables()[var].get_domain_size());
+        for(int j = 0; j < task_proxy.get_variables()[var].get_domain_size(); ++j) {
+            fact_to_var[var][j] = fact_amount++;
+        }
+    }
+
+    std::ofstream task_file;
+    task_file.open("task.txt");
+
+    task_file << "begin_atoms:" << fact_amount << "\n";
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        int var = varorder[i];
+        for(int j = 0; j < task_proxy.get_variables()[var].get_domain_size(); ++j) {
+            task_file << task_proxy.get_variables()[var].get_fact(j).get_name() << "\n";
+        }
+    }
+    task_file << "end_atoms\n";
+
+    task_file << "begin_init\n";
+    for(size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
+        task_file << fact_to_var[i][task_proxy.get_initial_state()[i].get_value()] << "\n";
+    }
+    task_file << "end_init\n";
+
+    task_file << "begin_goal\n";
+    for(size_t i = 0; i < task_proxy.get_goals().size(); ++i) {
+        FactProxy f = task_proxy.get_goals()[i];
+        task_file << fact_to_var[f.get_variable().get_id()][f.get_value()] << "\n";
+    }
+    task_file << "end_goal\n";
+
+
+    task_file << "begin_actions:" << task_proxy.get_operators().size() << "\n";
+    for(size_t op_index = 0;  op_index < task_proxy.get_operators().size(); ++op_index) {
+        OperatorProxy op = task_proxy.get_operators()[op_index];
+
+        task_file << "begin_action\n"
+                  << op.get_name() << "\n"
+                  << "cost: "<< op.get_cost() <<"\n";
+        PreconditionsProxy pre = op.get_preconditions();
+        EffectsProxy post = op.get_effects();
+
+        for(size_t i = 0; i < pre.size(); ++i) {
+            task_file << "PRE:" << fact_to_var[pre[i].get_variable().get_id()][pre[i].get_value()] << "\n";
+        }
+        for(size_t i = 0; i < post.size(); ++i) {
+            if(!post[i].get_conditions().empty()) {
+                std::cout << "CONDITIONAL EFFECTS, ABORT!";
+                task_file.close();
+                std::remove("task.txt");
+                utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+            }
+            FactProxy f = post[i].get_fact();
+            task_file << "ADD:" << fact_to_var[f.get_variable().get_id()][f.get_value()] << "\n";
+            // all other facts from this FDR variable are set to false
+            // TODO: can we make this more compact / smarter?
+            for(int j = 0; j < f.get_variable().get_domain_size(); j++) {
+                if(j == f.get_value()) {
+                    continue;
+                }
+                task_file << "DEL:" << fact_to_var[f.get_variable().get_id()][j] << "\n";
+            }
+        }
+        task_file << "end_action\n";
+    }
+    task_file << "end_actions\n";
+    task_file.close();
+}
+
 }

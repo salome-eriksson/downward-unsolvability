@@ -2,6 +2,11 @@ __pycache__/
 /output.sas
 /sas_plan
 /sas_plan.*
+/task.txt
+/*.bdd
+/cert*.txt
+/hints.txt
+/proof.txt
 /builds/
 /experiments/issue*/.venv/
 /experiments/issue*/data/

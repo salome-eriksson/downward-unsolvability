@@ -56,6 +56,7 @@ static shared_ptr<SearchEngine> _parse(OptionParser &parser) {
         "boost value for preferred operator open lists", "0");
 
     eager_search::add_options_to_parser(parser);
+    SearchEngine::add_unsolvability_options(parser);
     Options opts = parser.parse();
     opts.verify_list_non_empty<shared_ptr<Evaluator>>("evals");
 
