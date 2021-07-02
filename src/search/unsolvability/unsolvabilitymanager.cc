@@ -69,11 +69,6 @@ SetExpression UnsolvabilityManager::get_initset() {
     return initset;
 }
 
-std::string &UnsolvabilityManager::get_directory() {
-    return directory;
-}
-
-
 void UnsolvabilityManager::dump_state(const State &state) {
     int c = 0;
     int count = 3;
@@ -95,16 +90,21 @@ void UnsolvabilityManager::dump_state(const State &state) {
     }
 }
 
+void UnsolvabilityManager::dump_BDDs() {
+    for (auto entry : bdds) {
+        const CuddManager *manager = entry.first;
+        manager->dumpBDDs(entry.second, directory);
+    }
+}
+
+
 // TODO: enforce move
-SetExpression UnsolvabilityManager::define_bdd(int pos, std::string filename, CuddBDD bdd) {
-    CuddManager *manager;
-    // TODO: change once manager has file responsibility
-//    int pos = bdds[manager].size();
+SetExpression UnsolvabilityManager::define_bdd(CuddBDD bdd) {
+    CuddManager *manager = bdd.get_manager();
+    int pos = bdds[manager].size();
     bdds[manager].push_back(bdd);
     int new_sid = get_new_setid();
-    certstream << "e " << new_sid << " b " << filename << " " << pos << " ;\n";
-    // TODO: change once manager has file responsibility
-//    certstream << "e " << new_sid << " b " << manager << ".bdd " << pos << " ;\n";
+    certstream << "e " << new_sid << " b " << directory + manager->get_filename() << " " << pos << " ;\n";
     return SetExpression(new_sid);
 }
 
@@ -171,10 +171,7 @@ Judgment UnsolvabilityManager::make_statement(SetExpression left_set, SetExpress
 
 Judgment UnsolvabilityManager::apply_rule_ed() {
     if (empty_dead.id == -1) {
-        int new_kid = get_new_knowledgeid();
-        int empty_setid = get_emptyset().id;
-        certstream << "k " << new_kid << " d " << empty_setid << " ed\n";
-        empty_dead = Judgment(new_kid);
+        empty_dead = Judgment(apply_dead_rule(get_emptyset().id, "ed", {}));
     }
     return empty_dead;
 }

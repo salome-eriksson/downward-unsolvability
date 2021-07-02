@@ -28,6 +28,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
 
     CuddManager* cudd_manager;
     std::vector<int> variable_order;
+    // TODO: does this have to be a raw pointer?
     CuddBDD *bdd;
     std::string bdd_filename;
     std::pair<SetExpression, Judgment> set_and_dead_knowledge;

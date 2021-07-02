@@ -2,6 +2,7 @@
 #include "../utils/timer.h"
 
 #include <algorithm>
+#include <sstream>
 
 #ifdef USE_CUDD
 #include "dddmp.h"
@@ -182,6 +183,12 @@ CuddManager::CuddManager(std::shared_ptr<AbstractTask> task)
     ddmgr = Cudd_Init(bdd_varamount,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
     Cudd_InstallOutOfMemoryHandler(exit_oom);
     Cudd_UnregisterOutOfMemoryCallback(ddmgr);
+
+    // filename is based on the memory address of the manager to ensure uniqueness
+    std::stringstream ss;
+    ss << this << ".bdd";
+    filename = ss.str();
+
 }
 
 
@@ -209,9 +216,10 @@ const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {
     return &fact_to_var;
 }
 
-void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, const std::string filename) const {
+void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, std::string directory) const {
     std::ofstream stream;
-    stream.open(filename);
+    std::string full_filename = directory+filename;
+    stream.open(full_filename);
     for(size_t i = 0; i < fact_to_var.size(); ++i) {
         for(size_t j = 0; j < fact_to_var[i].size(); ++j) {
             stream << fact_to_var[i][j] << " ";
@@ -221,7 +229,7 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, const std::string filenam
     stream.close();
 
     FILE *fp;
-    fp = fopen(filename.c_str(), "a");
+    fp = fopen(full_filename.c_str(), "a");
 
     if (compact_proof) {
         int size = bdds.size();
@@ -246,6 +254,10 @@ void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, const std::string filenam
 
 void CuddManager::set_compact_proof(bool val) {
     compact_proof = val;
+}
+
+std::string CuddManager::get_filename() const {
+    return filename;
 }
 
 #endif

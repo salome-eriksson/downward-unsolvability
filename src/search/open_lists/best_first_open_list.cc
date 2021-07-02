@@ -44,7 +44,6 @@ public:
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
-    virtual void finish_unsolvability_proof() override;
 };
 
 
@@ -130,11 +129,6 @@ std::pair<SetExpression,Judgment> BestFirstOpenList<Entry>::get_dead_end_justifi
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-}
-
-template<class Entry>
-void BestFirstOpenList<Entry>::finish_unsolvability_proof() {
-    evaluator->finish_unsolvability_proof();
 }
 
 BestFirstOpenListFactory::BestFirstOpenListFactory(

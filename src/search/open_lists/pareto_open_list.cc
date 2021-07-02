@@ -59,7 +59,6 @@ public:
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
-    virtual void finish_unsolvability_proof() override;
 
     static OpenList<Entry> *_parse(OptionParser &p);
 };
@@ -245,13 +244,6 @@ std::pair<SetExpression,Judgment> ParetoOpenList<Entry>::get_dead_end_justificat
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-}
-
-template<class Entry>
-void ParetoOpenList<Entry>::finish_unsolvability_proof() {
-    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
-        evaluator->finish_unsolvability_proof();
-    }
 }
 
 ParetoOpenListFactory::ParetoOpenListFactory(

@@ -61,7 +61,6 @@ public:
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
-    virtual void finish_unsolvability_proof() override;
 };
 
 template<class HeapNode>
@@ -138,11 +137,6 @@ std::pair<SetExpression,Judgment> EpsilonGreedyOpenList<Entry>::get_dead_end_jus
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-}
-
-template<class Entry>
-void EpsilonGreedyOpenList<Entry>::finish_unsolvability_proof() {
-    evaluator->finish_unsolvability_proof();
 }
 
 template<class Entry>

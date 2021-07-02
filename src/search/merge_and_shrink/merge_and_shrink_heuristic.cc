@@ -158,15 +158,7 @@ std::pair<SetExpression,Judgment> MergeAndShrinkHeuristic::get_dead_end_justific
         EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
     if(!deadends_shown_dead) {
         get_bdd();
-        std::vector<CuddBDD>bdds(1,*bdd);
-        delete bdd;
-
-        std::stringstream ss;
-        ss << unsolvmanager.get_directory() << this << ".bdd";
-        bdd_filename = ss.str();
-        cudd_manager->dumpBDDs(bdds, bdd_filename);
-
-        SetExpression set = unsolvmanager.define_bdd(0, bdd_filename, bdds[0]);
+        SetExpression set = unsolvmanager.define_bdd(*bdd);
         SetExpression progression = unsolvmanager.define_set_progression(set, 0);
         SetExpression empty_set = unsolvmanager.get_emptyset();
         SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);

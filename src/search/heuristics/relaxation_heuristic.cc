@@ -340,17 +340,12 @@ void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
 
 std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justification(
         EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
-    if (knowledge_for_bdd.empty()) {
-        std::stringstream ss;
-        ss << unsolvmanager.get_directory() << this << ".bdd";
-        bdd_filename = ss.str();
-    }
     int bddindex = state_to_bddindex[eval_context.get_state().get_id().get_value()];
     assert(bddindex >= 0);
     auto entry = knowledge_for_bdd.find(bddindex);
 
     if(entry == knowledge_for_bdd.end()) {
-        SetExpression set = unsolvmanager.define_bdd(bddindex, bdd_filename, bdds[bddindex]);
+        SetExpression set = unsolvmanager.define_bdd(bdds[bddindex]);
         SetExpression progression = unsolvmanager.define_set_progression(set, 0);
         SetExpression empty_set = unsolvmanager.get_emptyset();
         SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
@@ -366,11 +361,5 @@ std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justificati
         entry = knowledge_for_bdd.insert(std::make_pair(bddindex, std::make_pair(set, set_dead))).first;
     }
     return entry->second;
-}
-
-void RelaxationHeuristic::finish_unsolvability_proof() {
-    if(!bdds.empty()) {
-        cudd_manager->dumpBDDs(bdds, bdd_filename);
-    }
 }
 }

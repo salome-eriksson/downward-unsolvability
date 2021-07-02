@@ -388,7 +388,6 @@ void EagerSearch::write_unsolvability_proof() {
         Judgment init_subset_deadend_set = unsolvmgr.make_statement(initial_set, deadend_set, "b1");
         Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, init_subset_deadend_set, deadend_set_dead);
         unsolvmgr.apply_rule_ci(init_dead);
-        open_list->finish_unsolvability_proof();
 
         /*
           Writing the task file at the end minimizes the chances that both task and
@@ -479,7 +478,6 @@ void EagerSearch::write_unsolvability_proof() {
     }
 
     std::vector<CuddBDD> bdds;
-    std::string filename_search_bdds = unsolvmgr.get_directory() + "search.bdd";
     SetExpression  dead_end_set;
     Judgment deadends_dead;
 
@@ -510,7 +508,7 @@ void EagerSearch::write_unsolvability_proof() {
         Judgment expl_deadends_subset = unsolvmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
         Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_dead_ends, expl_deadends_subset, merge_tree[0].justification);
         // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
-        SetExpression dead_ends_bdd = unsolvmgr.define_bdd(bdds.size()-1, filename_search_bdds, bdds[bdds.size()-1]);
+        SetExpression dead_ends_bdd = unsolvmgr.define_bdd(bdds[bdds.size()-1]);
         Judgment bdd_subset_explicit = unsolvmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
         Judgment bdd_dead = unsolvmgr.apply_rule_sd(dead_ends_bdd, bdd_subset_explicit, expl_deadends_dead);
 
@@ -521,7 +519,7 @@ void EagerSearch::write_unsolvability_proof() {
     bdds.push_back(expanded);
 
     // show that expanded states only lead to themselves and dead states
-    SetExpression expanded_set = unsolvmgr.define_bdd(bdds.size()-1, filename_search_bdds, bdds[bdds.size()-1]);
+    SetExpression expanded_set = unsolvmgr.define_bdd(bdds[bdds.size()-1]);
     SetExpression expanded_progressed = unsolvmgr.define_set_progression(expanded_set, 0);
     SetExpression expanded_union_dead = unsolvmgr.define_set_union(expanded_set, dead_end_set);
     SetExpression goal_set = unsolvmgr.get_goalset();
@@ -537,9 +535,11 @@ void EagerSearch::write_unsolvability_proof() {
     Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initset(), init_in_expanded, expanded_dead);
     unsolvmgr.apply_rule_ci(init_dead);
 
-    open_list->finish_unsolvability_proof();
+    std::cout << "dumping bdds" << std::endl;
 
-    manager.dumpBDDs(bdds, filename_search_bdds);
+    unsolvmgr.dump_BDDs();
+
+    std::cout << "done dumping bdds" << std::endl;
 
     /*
       Writing the task file at the end minimizes the chances that both task and

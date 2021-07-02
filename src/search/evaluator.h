@@ -86,9 +86,6 @@ public:
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }
-    virtual void finish_unsolvability_proof() {}
-
-
 
     void report_value_for_initial_state(const EvaluationResult &result) const;
     void report_new_minimum_value(const EvaluationResult &result) const;

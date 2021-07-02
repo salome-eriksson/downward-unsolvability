@@ -71,6 +71,7 @@ private:
 
     std::unordered_map<CuddManager *, std::vector<CuddBDD>> bdds;
 
+    int get_new_setid();
     int get_new_knowledgeid();
 
     int apply_dead_rule(int setid, std::string rulename, std::vector<int> justification);
@@ -79,21 +80,19 @@ private:
 public:
     UnsolvabilityManager(std::string directory, std::shared_ptr<AbstractTask> task);
 
-    int get_new_setid();
 
     SetExpression get_emptyset();
     SetExpression get_goalset();
     SetExpression get_initset();
 
-    std::string &get_directory();
-
     void dump_state(const State &state);
+
+    void dump_BDDs();
 
     // TODO: should we return only const Judgments and SetExpressions?
 
     // TODO: make BDD const (currently a problem when getting the manager)
-    // TODO: remove pos (=position in bdd file) and filename once the manager is responsible for the file
-    SetExpression define_bdd(int pos, std::string filename, CuddBDD bdd);
+    SetExpression define_bdd(CuddBDD bdd);
     SetExpression define_horn_formula(int varamount, std::vector<std::vector<int>> &clauses);
     SetExpression define_explicit_set(int fact_amount, StateRegistry &state_registry, std::vector<StateID> state_ids);
 

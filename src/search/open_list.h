@@ -129,7 +129,6 @@ public:
     virtual void store_deadend_info(EvaluationContext &eval_context) = 0;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) = 0;
-    virtual void finish_unsolvability_proof() = 0;
 };
 
 
