@@ -365,7 +365,6 @@ void add_options_to_parser(OptionParser &parser) {
 
 void EagerSearch::write_unsolvability_proof() {
     double writing_start = utils::g_timer();
-
     UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
     std::vector<int> varorder(task_proxy.get_variables().size());
     for(size_t i = 0; i < varorder.size(); ++i) {
@@ -388,6 +387,9 @@ void EagerSearch::write_unsolvability_proof() {
         Judgment init_subset_deadend_set = unsolvmgr.make_statement(initial_set, deadend_set, "b1");
         Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, init_subset_deadend_set, deadend_set_dead);
         unsolvmgr.apply_rule_ci(init_dead);
+        
+        std::cout << "dumping bdds" << std::endl;
+        unsolvmgr.dump_BDDs();
 
         /*
           Writing the task file at the end minimizes the chances that both task and
