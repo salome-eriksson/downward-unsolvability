@@ -210,6 +210,11 @@ CuddManager::CuddManager(std::shared_ptr<AbstractTask> task, std::vector<int> &v
     ddmgr = Cudd_Init(bdd_varamount,0,CUDD_UNIQUE_SLOTS,CUDD_CACHE_SLOTS,0);
     Cudd_InstallOutOfMemoryHandler(exit_oom);
     Cudd_UnregisterOutOfMemoryCallback(ddmgr);
+    
+    // filename is based on the memory address of the manager to ensure uniqueness
+    std::stringstream ss;
+    ss << this << ".bdd";
+    filename = ss.str();
 }
 
 const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {
