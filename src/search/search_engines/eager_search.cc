@@ -385,7 +385,7 @@ void EagerSearch::write_unsolvability_proof() {
         Judgment deadend_set_dead = deadend.second;
         SetExpression initial_set = unsolvmgr.get_initset();
         Judgment init_subset_deadend_set = unsolvmgr.make_statement(initial_set, deadend_set, "b1");
-        Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, init_subset_deadend_set, deadend_set_dead);
+        Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, deadend_set_dead, init_subset_deadend_set);
         unsolvmgr.apply_rule_ci(init_dead);
         
         std::cout << "dumping bdds" << std::endl;
@@ -450,7 +450,7 @@ void EagerSearch::write_unsolvability_proof() {
             // prove that an explicit set only containing dead end is dead
             SetExpression state_set = unsolvmgr.define_explicit_set(fact_amount, state_registry, {id});
             Judgment state_subset_dead_end_set = unsolvmgr.make_statement(state_set, dead_end_set, "b4");
-            Judgment state_dead = unsolvmgr.apply_rule_sd(state_set, state_subset_dead_end_set, deadend_set_dead);
+            Judgment state_dead = unsolvmgr.apply_rule_sd(state_set, deadend_set_dead, state_subset_dead_end_set);
             merge_tree[mt_pos].set = state_set;
             merge_tree[mt_pos].justification = state_dead;
             merge_tree[mt_pos].de_pos_begin = dead_ends.size()-1;
@@ -508,11 +508,11 @@ void EagerSearch::write_unsolvability_proof() {
         SetExpression all_dead_ends = unsolvmgr.define_explicit_set(fact_amount, state_registry, dead_ends);
         // show that all_de_explicit is a subset to the union of all dead ends and thus dead
         Judgment expl_deadends_subset = unsolvmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
-        Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_dead_ends, expl_deadends_subset, merge_tree[0].justification);
+        Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_dead_ends, merge_tree[0].justification, expl_deadends_subset);
         // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
         SetExpression dead_ends_bdd = unsolvmgr.define_bdd(bdds[bdds.size()-1]);
         Judgment bdd_subset_explicit = unsolvmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
-        Judgment bdd_dead = unsolvmgr.apply_rule_sd(dead_ends_bdd, bdd_subset_explicit, expl_deadends_dead);
+        Judgment bdd_dead = unsolvmgr.apply_rule_sd(dead_ends_bdd, expl_deadends_dead, bdd_subset_explicit);
 
         dead_end_set = dead_ends_bdd;
         deadends_dead = bdd_dead;
@@ -530,11 +530,11 @@ void EagerSearch::write_unsolvability_proof() {
     Judgment empty_dead = unsolvmgr.apply_rule_ed();
     Judgment progression_to_deadends = unsolvmgr.make_statement(expanded_progressed, expanded_union_dead, "b2");
     Judgment goal_intersection_empty = unsolvmgr.make_statement(goal_intersection, unsolvmgr.get_emptyset(), "b1");
-    Judgment goal_intersection_dead = unsolvmgr.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
+    Judgment goal_intersection_dead = unsolvmgr.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
     Judgment expanded_dead = unsolvmgr.apply_rule_pg(expanded_set, progression_to_deadends, deadends_dead, goal_intersection_dead);
 
     Judgment init_in_expanded = unsolvmgr.make_statement(unsolvmgr.get_initset(), expanded_set, "b1");
-    Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initset(), init_in_expanded, expanded_dead);
+    Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initset(), expanded_dead, init_in_expanded);
     unsolvmgr.apply_rule_ci(init_dead);
 
     std::cout << "dumping bdds" << std::endl;

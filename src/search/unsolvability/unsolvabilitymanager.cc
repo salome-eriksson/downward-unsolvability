@@ -179,9 +179,9 @@ Judgment UnsolvabilityManager::apply_rule_ud(SetExpression set, Judgment &s_dead
                                                    Judgment &sp_dead) {
     return Judgment(apply_dead_rule(set.id, "ud", {s_dead.id, sp_dead.id}));
 }
-Judgment UnsolvabilityManager::apply_rule_sd(SetExpression set, Judgment &s_subset_sp,
-                                                   Judgment &sp_dead) {
-    return Judgment(apply_dead_rule(set.id, "sd", {s_subset_sp.id, sp_dead.id}));
+Judgment UnsolvabilityManager::apply_rule_sd(SetExpression set, Judgment &sp_dead,
+                                                   Judgment &s_subset_sp) {
+    return Judgment(apply_dead_rule(set.id, "sd", {sp_dead.id, s_subset_sp.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_pg(SetExpression set, Judgment &progression_subset,
                                                    Judgment &sp_dead,

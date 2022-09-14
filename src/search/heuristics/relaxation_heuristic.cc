@@ -355,7 +355,7 @@ std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justificati
         Judgment empty_dead = unsolvmanager.apply_rule_ed();
         Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
         Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
-        Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, goal_intersection_empty, empty_dead);
+        Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
         Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
 
         entry = knowledge_for_bdd.insert(std::make_pair(bddindex, std::make_pair(set, set_dead))).first;
