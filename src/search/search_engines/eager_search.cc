@@ -568,7 +568,7 @@ void EagerSearch::write_unsolvability_task_file(const std::vector<int> &varorder
     }
 
     std::ofstream task_file;
-    task_file.open("task.txt");
+    task_file.open(unsolvability_directory + "task.txt");
 
     task_file << "begin_atoms:" << fact_amount << "\n";
     for(size_t i = 0; i < varorder.size(); ++i) {
