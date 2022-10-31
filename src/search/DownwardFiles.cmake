@@ -321,6 +321,13 @@ fast_downward_plugin(
 )
 
 fast_downward_plugin(
+    NAME LIMITED_PRUNING
+    HELP "Method for limiting another pruning method"
+    SOURCES
+        pruning/limited_pruning
+)
+
+fast_downward_plugin(
     NAME STUBBORN_SETS
     HELP "Base class for all stubborn set partial order reduction methods"
     SOURCES
@@ -458,6 +465,7 @@ fast_downward_plugin(
         lp/lp_internals
         lp/lp_solver
     DEPENDS NAMED_VECTOR
+    DEPENDENCY_ONLY
 )
 
 fast_downward_plugin(
@@ -696,6 +704,7 @@ fast_downward_plugin(
     HELP "Plugin containing the code to reason with landmarks"
     SOURCES
         landmarks/exploration
+        landmarks/landmark
         landmarks/landmark_cost_assignment
         landmarks/landmark_count_heuristic
         landmarks/landmark_factory
@@ -714,9 +723,10 @@ fast_downward_plugin(
 
 fast_downward_plugin(
     NAME OPERATOR_COUNTING
-    HELP "Plugin containing the code for operator counting heuristics"
+    HELP "Plugin containing the code for operator-counting heuristics"
     SOURCES
         operator_counting/constraint_generator
+        operator_counting/delete_relaxation_constraints
         operator_counting/lm_cut_constraints
         operator_counting/operator_counting_heuristic
         operator_counting/pho_constraints
@@ -738,19 +748,24 @@ fast_downward_plugin(
         pdbs/pattern_cliques
         pdbs/pattern_collection_information
         pdbs/pattern_collection_generator_combo
+        pdbs/pattern_collection_generator_disjoint_cegar
         pdbs/pattern_collection_generator_genetic
         pdbs/pattern_collection_generator_hillclimbing
         pdbs/pattern_collection_generator_manual
         pdbs/pattern_collection_generator_multiple_cegar
-        pdbs/pattern_collection_generator_single_cegar
+        pdbs/pattern_collection_generator_multiple_random
+        pdbs/pattern_collection_generator_multiple
         pdbs/pattern_collection_generator_systematic
         pdbs/pattern_database
+        pdbs/pattern_generator_cegar
         pdbs/pattern_generator_greedy
         pdbs/pattern_generator_manual
+        pdbs/pattern_generator_random
         pdbs/pattern_generator
         pdbs/pattern_information
         pdbs/pdb_heuristic
         pdbs/plugin_group
+        pdbs/random_pattern
         pdbs/types
         pdbs/utils
         pdbs/validation

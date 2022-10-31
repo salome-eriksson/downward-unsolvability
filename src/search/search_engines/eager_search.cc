@@ -74,10 +74,10 @@ EagerSearch::EagerSearch(const Options &opts)
 }
 
 void EagerSearch::initialize() {
-    utils::g_log << "Conducting best first search"
-                 << (reopen_closed_nodes ? " with" : " without")
-                 << " reopening closed nodes, (real) bound = " << bound
-                 << endl;
+    log << "Conducting best first search"
+        << (reopen_closed_nodes ? " with" : " without")
+        << " reopening closed nodes, (real) bound = " << bound
+        << endl;
     assert(open_list);
 
     set<Evaluator *> evals;
@@ -128,7 +128,7 @@ void EagerSearch::initialize() {
                    unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             open_list->store_deadend_info(eval_context);
         }
-        utils::g_log << "Initial state is a dead end." << endl;
+        log << "Initial state is a dead end." << endl;
     } else {
         if (search_progress.check_progress(eval_context))
             statistics.print_checkpoint_line(0);
@@ -139,7 +139,7 @@ void EagerSearch::initialize() {
         open_list->insert(eval_context, initial_state.get_id());
     }
 
-    print_initial_evaluator_values(eval_context);
+    print_initial_evaluator_values(eval_context, log);
 
     pruning_method->initialize(task);
 }
@@ -158,7 +158,7 @@ SearchStatus EagerSearch::step() {
                     unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
                 write_unsolvability_proof();
             }
-            utils::g_log << "Completely explored state space -- no solution!" << endl;
+            log << "Completely explored state space -- no solution!" << endl;
             return FAILED;
         }
         StateID id = open_list->remove_min();

@@ -9,6 +9,10 @@
 
 class State;
 
+namespace utils {
+class LogProxy;
+}
+
 namespace merge_and_shrink {
 class Distances;
 class MergeAndShrinkRepresentation {
@@ -35,7 +39,7 @@ public:
     /* Return true iff the represented function is total, i.e., does not map
        to PRUNED_STATE. */
     virtual bool is_total() const = 0;
-    virtual void dump() const = 0;
+    virtual void dump(utils::LogProxy &log) const = 0;
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) = 0;
     virtual CuddBDD* get_deadend_bdd(
                 CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) = 0;
@@ -56,7 +60,7 @@ public:
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_value(const State &state) const override;
     virtual bool is_total() const override;
-    virtual void dump() const override;
+    virtual void dump(utils::LogProxy &log) const override;
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
     virtual CuddBDD* get_deadend_bdd(
                 CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
@@ -79,7 +83,7 @@ public:
         const std::vector<int> &abstraction_mapping) override;
     virtual int get_value(const State &state) const override;
     virtual bool is_total() const override;
-    virtual void dump() const override;
+    virtual void dump(utils::LogProxy &log) const override;
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
     virtual CuddBDD* get_deadend_bdd(
                 CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
