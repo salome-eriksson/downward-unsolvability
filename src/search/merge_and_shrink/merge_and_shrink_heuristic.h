@@ -2,8 +2,8 @@
 #define MERGE_AND_SHRINK_MERGE_AND_SHRINK_HEURISTIC_H
 
 #include "../heuristic.h"
-#include "../evaluation_context.h"
-#include "../unsolvability/cudd_interface.h"
+//#include "../evaluation_context.h"
+//#include "../unsolvability/cudd_interface.h"
 
 #include "../utils/logging.h"
 
@@ -23,7 +23,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
     bool extract_unsolvable_factor(FactoredTransitionSystem &fts);
     void extract_nontrivial_factors(FactoredTransitionSystem &fts);
     void extract_factors(FactoredTransitionSystem &fts);
-
+/*
     CuddManager* cudd_manager;
     std::vector<int> variable_order;
     // TODO: does this have to be a raw pointer?
@@ -33,15 +33,17 @@ class MergeAndShrinkHeuristic : public Heuristic {
     bool deadends_shown_dead;
 
     void get_bdd();
+*/
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 public:
     explicit MergeAndShrinkHeuristic(const options::Options &opts);
-
+/*
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+*/
 };
 }
 

@@ -44,10 +44,11 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
-
+/*
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+*/
 };
 
 template<class Entry>
@@ -130,7 +131,7 @@ bool TypeBasedOpenList<Entry>::is_reliable_dead_end(
     }
     return false;
 }
-
+/*
 template<class Entry>
 void TypeBasedOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
@@ -142,7 +143,7 @@ void TypeBasedOpenList<Entry>::store_deadend_info(EvaluationContext &eval_contex
 
 template<class Entry>
 std::pair<SetExpression,Judgment> TypeBasedOpenList<Entry>::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
         if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
             return evaluator->get_dead_end_justification(eval_context, unsolvmanager);
@@ -151,6 +152,7 @@ std::pair<SetExpression,Judgment> TypeBasedOpenList<Entry>::get_dead_end_justifi
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
+*/
 
 template<class Entry>
 void TypeBasedOpenList<Entry>::get_path_dependent_evaluators(

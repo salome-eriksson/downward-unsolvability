@@ -42,10 +42,11 @@ public:
 
     virtual void get_path_dependent_evaluators(
         std::set<Evaluator *> &evals) override;
-
+/*
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+*/
 };
 }
 

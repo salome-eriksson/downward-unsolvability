@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
-#include <sstream>
+//#include <sstream>
 
 using namespace std;
 
@@ -38,8 +38,11 @@ UnaryOperator::UnaryOperator(
 // construction and destruction
 // TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
 RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
+    : Heuristic(opts) {
+/*
     : Heuristic(opts), unsolv_subsumption_check(false),
       unsolvability_setup(false) {
+*/
     // Build propositions.
     propositions.resize(task_properties::get_num_facts(task_proxy));
 
@@ -298,7 +301,7 @@ void RelaxationHeuristic::simplify() {
 
     utils::g_log << " done! [" << unary_operators.size() << " unary operators]" << endl;
 }
-
+/*
 // CARE: we assume the heuristic has just been calculated for this state
 std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const State &state) {
     auto it = state_to_bddindex.find(state.get_id().get_value());
@@ -339,7 +342,7 @@ void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
 }
 
 std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager) {
     int bddindex = state_to_bddindex[eval_context.get_state().get_id().get_value()];
     assert(bddindex >= 0);
     auto entry = knowledge_for_bdd.find(bddindex);
@@ -362,4 +365,5 @@ std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justificati
     }
     return entry->second;
 }
+*/
 }

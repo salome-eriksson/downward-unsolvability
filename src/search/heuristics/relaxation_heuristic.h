@@ -4,8 +4,8 @@
 #include "array_pool.h"
 
 #include "../heuristic.h"
-#include "../unsolvability/cudd_interface.h"
-#include "../evaluation_context.h"
+//#include "../unsolvability/cudd_interface.h"
+//#include "../evaluation_context.h"
 
 #include "../utils/collections.h"
 
@@ -66,13 +66,14 @@ protected:
     std::vector<UnaryOperator> unary_operators;
     std::vector<Proposition> propositions;
     std::vector<PropID> goal_propositions;
-
+/*
     bool unsolv_subsumption_check;
     CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
     std::unordered_map<int,int> state_to_bddindex;
     std::unordered_map<int, std::pair<SetExpression,Judgment>> knowledge_for_bdd;
     bool unsolvability_setup;
+*/
 
     array_pool::ArrayPool preconditions_pool;
     array_pool::ArrayPool precondition_of_pool;
@@ -118,21 +119,21 @@ protected:
     const Proposition *get_proposition(int var, int value) const;
     Proposition *get_proposition(int var, int value);
     Proposition *get_proposition(const FactProxy &fact);
-
     /*
       bool bdd_already_seen: whether the bdd was built before the function call already
       int bddindex: the index of the requested bdd in bdds vector
      */
-    std::pair<bool,int> get_bdd_for_state(const State &state);
+    //std::pair<bool,int> get_bdd_for_state(const State &state);
 public:
     explicit RelaxationHeuristic(const options::Options &options);
 
     virtual bool dead_ends_are_reliable() const override;
-
+/*
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+*/
 };
 }
 

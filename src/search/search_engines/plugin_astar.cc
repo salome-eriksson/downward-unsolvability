@@ -34,7 +34,7 @@ static shared_ptr<SearchEngine> _parse(OptionParser &parser) {
         OptionParser::NONE);
 
     eager_search::add_options_to_parser(parser);
-    SearchEngine::add_unsolvability_options(parser);
+    SearchEngine::add_certificate_options(parser);
     Options opts = parser.parse();
 
     shared_ptr<eager_search::EagerSearch> engine;

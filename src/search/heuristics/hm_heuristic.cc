@@ -9,7 +9,7 @@
 #include <cassert>
 #include <limits>
 #include <set>
-#include <sstream>
+//#include <sstream>
 
 using namespace std;
 
@@ -18,8 +18,9 @@ HMHeuristic::HMHeuristic(const Options &opts)
     : Heuristic(opts),
       m(opts.get<int>("m")),
       has_cond_effects(task_properties::has_conditional_effects(task_proxy)),
-      goals(task_properties::get_fact_pairs(task_proxy.get_goals())),
-      unsolvability_setup(false) {
+      goals(task_properties::get_fact_pairs(task_proxy.get_goals())) {
+      //goals(task_properties::get_fact_pairs(task_proxy.get_goals())),
+      //unsolvability_setup(false) {
     utils::g_log << "Using h^" << m << "." << endl;
     utils::g_log << "The implementation of the h^m heuristic is preliminary." << endl
                  << "It is SLOOOOOOOOOOOW." << endl
@@ -262,7 +263,7 @@ void HMHeuristic::dump_table() const {
     }
 }
 
-
+/*
 void HMHeuristic::setup_unsolvability_proof() {
     int varamount = task_proxy.get_variables().size();
     fact_to_variable.resize(varamount);
@@ -303,7 +304,7 @@ void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
 }
 
 std::pair<SetExpression,Judgment> HMHeuristic::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager) {
 
     std::vector<std::vector<int>> clauses = mutexes;
     clauses.reserve(mutexes.size() + unreachable_tuples.size());
@@ -331,7 +332,7 @@ std::pair<SetExpression,Judgment> HMHeuristic::get_dead_end_justification(
     Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
     return std::make_pair(set, set_dead);
 }
-
+*/
 
 static shared_ptr<Heuristic> _parse(OptionParser &parser) {
     parser.document_synopsis("h^m heuristic", "");

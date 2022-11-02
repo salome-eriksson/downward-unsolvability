@@ -49,10 +49,11 @@ public:
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
-
+/*
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+*/
 };
 
 
@@ -141,7 +142,7 @@ bool TieBreakingOpenList<Entry>::is_reliable_dead_end(
             return true;
     return false;
 }
-
+/*
 template<class Entry>
 void TieBreakingOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
@@ -153,7 +154,7 @@ void TieBreakingOpenList<Entry>::store_deadend_info(EvaluationContext &eval_cont
 
 template<class Entry>
 std::pair<SetExpression,Judgment> TieBreakingOpenList<Entry>::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager)  {
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager)  {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
         if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
             return evaluator->get_dead_end_justification(eval_context, unsolvmanager);
@@ -162,6 +163,7 @@ std::pair<SetExpression,Judgment> TieBreakingOpenList<Entry>::get_dead_end_justi
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
+*/
 
 TieBreakingOpenListFactory::TieBreakingOpenListFactory(const Options &options)
     : options(options) {

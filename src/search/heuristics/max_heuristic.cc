@@ -26,7 +26,7 @@ namespace max_heuristic {
 // construction and destruction
 HSPMaxHeuristic::HSPMaxHeuristic(const Options &opts)
     : RelaxationHeuristic(opts) {
-    unsolv_subsumption_check = opts.get<bool>("unsolv_subsumption");
+//    unsolv_subsumption_check = opts.get<bool>("unsolv_subsumption");
     utils::g_log << "Initializing HSP max heuristic..." << endl;
 }
 
@@ -113,9 +113,9 @@ static shared_ptr<Heuristic> _parse(OptionParser &parser) {
     parser.document_property("safe", "yes for tasks without axioms");
     parser.document_property("preferred operators", "no");
 
-    parser.add_option<bool>("unsolv_subsumption",
+/*    parser.add_option<bool>("unsolv_subsumption",
                             "check if a dead-end is covered by a previous one",
-                            "false");
+                            "false");*/
     Heuristic::add_options_to_parser(parser);
     Options opts = parser.parse();
     if (parser.dry_run())

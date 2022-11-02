@@ -18,7 +18,7 @@
 #include <cassert>
 #include <iostream>
 #include <utility>
-#include <unordered_map>
+//#include <unordered_map>
 
 using namespace std;
 using utils::ExitCode;
@@ -26,7 +26,6 @@ using utils::ExitCode;
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const options::Options &opts)
     : Heuristic(opts),
-
       log(utils::get_log_from_options(opts)) {
     log << "Initializing merge-and-shrink heuristic..." << endl;
     MergeAndShrinkAlgorithm algorithm(opts);
@@ -112,8 +111,7 @@ void MergeAndShrinkHeuristic::extract_factors(FactoredTransitionSystem &fts) {
     if (log.is_at_least_normal()) {
         log << "Number of factors kept: " << num_factors_kept << endl;
     }
-
-
+/*
     int amount_vars = task_proxy.get_variables().size();
     variable_order.reserve(amount_vars);
     //TODO: HACK - ask Silvan why we have a vector now
@@ -128,6 +126,7 @@ void MergeAndShrinkHeuristic::extract_factors(FactoredTransitionSystem &fts) {
     }
 
     cudd_manager = new CuddManager(task, variable_order);
+*/
 }
 
 int MergeAndShrinkHeuristic::compute_heuristic(const State &ancestor_state) {
@@ -143,8 +142,7 @@ int MergeAndShrinkHeuristic::compute_heuristic(const State &ancestor_state) {
     }
     return heuristic;
 }
-
-
+/*
 void MergeAndShrinkHeuristic::get_bdd() {
     std::unordered_map<int, CuddBDD> bdd_map;
     bdd_map.insert({0, CuddBDD(cudd_manager, false)});
@@ -154,7 +152,7 @@ void MergeAndShrinkHeuristic::get_bdd() {
 }
 
 std::pair<SetExpression,Judgment> MergeAndShrinkHeuristic::get_dead_end_justification(
-        EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
+        EvaluationContext &, CertificateManager &unsolvmanager) {
     if(!deadends_shown_dead) {
         get_bdd();
         SetExpression set = unsolvmanager.define_bdd(*bdd);
@@ -175,7 +173,7 @@ std::pair<SetExpression,Judgment> MergeAndShrinkHeuristic::get_dead_end_justific
     }
     return set_and_dead_knowledge;
 }
-
+*/
 
 static shared_ptr<Heuristic> _parse(options::OptionParser &parser) {
     parser.document_synopsis(

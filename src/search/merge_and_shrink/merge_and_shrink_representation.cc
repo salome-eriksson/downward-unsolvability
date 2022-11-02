@@ -79,6 +79,7 @@ void MergeAndShrinkRepresentationLeaf::dump(utils::LogProxy &log) const {
     log << endl;
 }
 
+/*
 void MergeAndShrinkRepresentationLeaf::get_bdds(
         CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) {
 
@@ -142,6 +143,7 @@ CuddBDD *MergeAndShrinkRepresentationLeaf::get_deadend_bdd(
 void MergeAndShrinkRepresentationLeaf::fill_varorder(std::vector<int> &varorder) {
     varorder.push_back(var_id);
 }
+*/
 
 MergeAndShrinkRepresentationMerge::MergeAndShrinkRepresentationMerge(
     unique_ptr<MergeAndShrinkRepresentation> left_child_,
@@ -220,7 +222,7 @@ void MergeAndShrinkRepresentationMerge::dump(utils::LogProxy &log) const {
     log << "right child:" << endl;
     right_child->dump(log);
 }
-
+/*
 void MergeAndShrinkRepresentationMerge::get_bdds(
         CuddManager *, std::unordered_map<int, CuddBDD> &) {
     // TODO: clearer error message
@@ -273,4 +275,5 @@ void MergeAndShrinkRepresentationMerge::fill_varorder(std::vector<int> &varorder
     left_child->fill_varorder(varorder);
     right_child->fill_varorder(varorder);
 }
+*/
 }

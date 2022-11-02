@@ -2,14 +2,14 @@
 #define HEURISTICS_HM_HEURISTIC_H
 
 #include "../heuristic.h"
-#include "../evaluation_context.h"
+//#include "../evaluation_context.h"
 
 #include <algorithm>
-#include <forward_list>
+//#include <forward_list>
 #include <iostream>
 #include <map>
 #include <string>
-#include <unordered_map>
+//#include <unordered_map>
 #include <vector>
 
 namespace options {
@@ -36,12 +36,12 @@ class HMHeuristic : public Heuristic {
     std::map<Tuple, int> hm_table;
     bool was_updated;
 
-    bool unsolvability_setup;
+/*    bool unsolvability_setup;
     std::vector<std::vector<int>> fact_to_variable;
 
     std::unordered_map<int,std::forward_list<const Tuple *>> unreachable_tuples;
     int strips_varamount;
-    std::vector<std::vector<int>> mutexes;
+    std::vector<std::vector<int>> mutexes;*/
 
     // auxiliary methods
     void init_hm_table(const Tuple &t);
@@ -67,8 +67,7 @@ class HMHeuristic : public Heuristic {
 
     void dump_table() const;
 
-    void setup_unsolvability_proof();
-
+//    void setup_unsolvability_proof();
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 
@@ -77,9 +76,10 @@ public:
 
     virtual bool dead_ends_are_reliable() const override;
 
-    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+/*    virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+*/
 };
 }
 

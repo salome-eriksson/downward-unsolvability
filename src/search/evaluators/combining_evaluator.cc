@@ -50,7 +50,7 @@ void CombiningEvaluator::get_path_dependent_evaluators(
     for (auto &subevaluator : subevaluators)
         subevaluator->get_path_dependent_evaluators(evals);
 }
-
+/*
 void CombiningEvaluator::store_deadend_info(EvaluationContext &eval_context) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
@@ -61,7 +61,7 @@ void CombiningEvaluator::store_deadend_info(EvaluationContext &eval_context) {
 }
 
 std::pair<SetExpression,Judgment> CombiningEvaluator::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
             return subevaluator->get_dead_end_justification(eval_context, unsolvmanager);
@@ -70,5 +70,5 @@ std::pair<SetExpression,Judgment> CombiningEvaluator::get_dead_end_justification
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
-
+*/
 }
