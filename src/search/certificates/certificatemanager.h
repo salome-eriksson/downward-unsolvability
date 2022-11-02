@@ -132,6 +132,8 @@ public:
                            const Judgment &actions_contained, const Judgment &nogoal,
                            std::vector<std::pair<Judgment,Judgment>> successor_bounds);
 
+    Judgment apply_rule_bi(unsigned bound, const Judgment &init_bound);
+
     Judgment apply_rule_ur(const SetExpression &left_set, const SetExpression &right_set);
     Judgment apply_rule_ul(const SetExpression &left_set, const SetExpression &right_set);
     Judgment apply_rule_ir(const SetExpression &left_set, const SetExpression &right_set);

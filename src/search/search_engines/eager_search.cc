@@ -347,7 +347,6 @@ void add_options_to_parser(OptionParser &parser) {
 }
 
 void EagerSearch::write_certificate(int optimal_cost) {
-    std::cout << "optimal cost: " << optimal_cost << std::endl;
     double writing_start = utils::g_timer();
     CertificateManager certmgr(certificate_directory, task);
     std::vector<int> varorder(task_proxy.get_variables().size());
@@ -376,7 +375,7 @@ void EagerSearch::write_certificate(int optimal_cost) {
     for (size_t i = 1; i < sorted_actions.size(); ++i) {
         action_union = certmgr.define_action_set_union(action_union, sorted_actions[i]);
     }
-    Judgment all_actions_contained = certmgr.make_statement(certmgr.get_allactions(), action_union, "B5");
+    Judgment all_actions_contained = certmgr.make_statement(certmgr.get_allactions(), action_union, "b5");
 
     // build BDDs representing all states with a specific g value
     std::unordered_map<int, CuddBDD> states_by_g_value;
@@ -401,11 +400,6 @@ void EagerSearch::write_certificate(int optimal_cost) {
     }
     sorted_bounds.push_back(0);
     std::sort (sorted_bounds.begin(), sorted_bounds.end());
-    std::cout << "Bounds: ";
-    for(int bound : sorted_bounds) {
-        std::cout << bound << " ";
-    }std::cout << std::endl;
-
 
     /*
      * Create sets S_i, starting with S_optimalcost = states_by_g_value[0]
@@ -414,7 +408,6 @@ void EagerSearch::write_certificate(int optimal_cost) {
     std::vector<SetExpression> bound_sets(sorted_bounds.size());
     CuddBDD lastBDD(&manager, false);
     for (size_t i = sorted_bounds.size()-1; i > 0; --i) {
-        std::cout << "sorted bound: " << i << std::endl;
         CuddBDD &bdd = states_by_g_value[optimal_cost-sorted_bounds[i]];
         bdd.lor(lastBDD);
         lastBDD = bdd;
@@ -431,7 +424,7 @@ void EagerSearch::write_certificate(int optimal_cost) {
         int bound = sorted_bounds[si];
         const SetExpression &set = bound_sets[si];
         SetExpression goal_intersection = certmgr.define_set_intersection(set, certmgr.get_goalset());
-        Judgment empty_goal = certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "B1");
+        Judgment empty_goal = certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
 
         std::vector<std::pair<Judgment,Judgment>> successor_bounds;
         for (size_t ai = 0 ; ai < sorted_action_costs.size(); ++ai) {
@@ -439,204 +432,28 @@ void EagerSearch::write_certificate(int optimal_cost) {
             int other_bound_index = std::distance(
                         sorted_bounds.begin(),
                         std::lower_bound(sorted_bounds.begin(), sorted_bounds.end(), bound-action_cost));
-            std::cout << "other bound index: " << other_bound_index << std::endl;
             const SetExpression &other_set = (si == other_bound_index) ?
                         certmgr.get_emptyset() : bound_sets[other_bound_index];
             SetExpression set_union = certmgr.define_set_union(set, other_set);
             SetExpression progression = certmgr.define_set_progression(set, sorted_actions[ai]);
-            Judgment prog_judgment = certmgr.make_statement(progression, set_union, "B2");
+            Judgment prog_judgment = certmgr.make_statement(progression, set_union, "b2");
             Judgment succ_bound = (si == other_bound_index) ? empty_bound : bound_judgments[other_bound_index];
             successor_bounds.push_back({prog_judgment, succ_bound});
         }
         bound_judgments[si] = certmgr.apply_rule_pc(set, sorted_bounds[si], all_actions_contained, empty_goal, successor_bounds);
     }
 
-    Judgment init_subset = certmgr.make_statement(certmgr.get_initset(), bound_sets.back(), "B1");
+    Judgment init_subset = certmgr.make_statement(certmgr.get_initset(), bound_sets.back(), "b1");
     Judgment init_bound = certmgr.apply_rule_sc(certmgr.get_initset(), optimal_cost, bound_judgments.back(), init_subset);
-
-    /*
-      TODO: asking if the initial node is new seems wrong, but that is
-      how the search handles a dead initial state
-     */
-    /*if(search_space.get_node(state_registry.get_initial_state()).is_new()) {
-        const State &init_state = state_registry.get_initial_state();
-        EvaluationContext eval_context(init_state,
-                                       0,
-                                       false, &statistics);
-        std::pair<SetExpression,Judgment> deadend = open_list->get_dead_end_justification(eval_context, certmgr);
-        SetExpression deadend_set = deadend.first;
-        Judgment deadend_set_dead = deadend.second;
-        SetExpression initial_set = certmgr.get_initset();
-        Judgment init_subset_deadend_set = certmgr.make_statement(initial_set, deadend_set, "b1");
-        Judgment init_dead = certmgr.apply_rule_sd(initial_set, deadend_set_dead, init_subset_deadend_set);
-        certmgr.apply_rule_ci(init_dead);
-        
-        std::cout << "dumping bdds" << std::endl;
-        certmgr.dump_BDDs();*/
-
-        /*
-          Writing the task file at the end minimizes the chances that both task and
-          proof file are there but the planner could not finish writing them.
-         */
-/*
-        write_certificate_task_file(varorder);
-
-        double writing_end = utils::g_timer();
-        std::cout << "Time for writing unsolvability proof: "
-                  << writing_end - writing_start << std::endl;
-        return;
-    }
-*/
-    /*struct MergeTreeEntry {
-        SetExpression set;
-        Judgment justification;
-        int de_pos_begin;
-        int depth;
-    };
-
-    CuddManager manager(task);
-    std::vector<StateID> dead_ends;
-    int dead_end_amount = statistics.get_dead_ends();
-    dead_ends.reserve(dead_end_amount);
-
-    std::vector<MergeTreeEntry> merge_tree;
-    if (dead_end_amount > 0) {
-        merge_tree.resize(ceil(log2(dead_end_amount+1)));
-    }
-    // mt_pos is the index of the first unused entry of merge_tree
-    int mt_pos = 0;
-
-    CuddBDD expanded = CuddBDD(&manager, false);
-    CuddBDD dead = CuddBDD(&manager, false);
-
-    int fact_amount = 0;
-    for(size_t i = 0; i < varorder.size(); ++i) {
-        fact_amount += task_proxy.get_variables()[varorder[i]].get_domain_size();
-    }
-
-    for(StateID id : state_registry) {
-        const State &state = state_registry.lookup_state(id);
-        CuddBDD statebdd = CuddBDD(&manager, state);
-        if (search_space.get_node(state).is_dead_end()) {
-
-            dead.lor(statebdd);
-            dead_ends.push_back(id);
-
-            EvaluationContext eval_context(state,
-                                           0,
-                                           false, &statistics);
-            std::pair<SetExpression,Judgment> deadend =
-                    open_list->get_dead_end_justification(eval_context, certmgr);
-            SetExpression dead_end_set = deadend.first;
-            Judgment deadend_set_dead = deadend.second;
-
-
-            // prove that an explicit set only containing dead end is dead
-            SetExpression state_set = certmgr.define_explicit_set(fact_amount, state_registry, {id});
-            Judgment state_subset_dead_end_set = certmgr.make_statement(state_set, dead_end_set, "b4");
-            Judgment state_dead = certmgr.apply_rule_sd(state_set, deadend_set_dead, state_subset_dead_end_set);
-            merge_tree[mt_pos].set = state_set;
-            merge_tree[mt_pos].justification = state_dead;
-            merge_tree[mt_pos].de_pos_begin = dead_ends.size()-1;
-            merge_tree[mt_pos].depth = 0;
-            mt_pos++;
-
-            // merge the last 2 sets to a new one if they have the same depth in the merge tree
-            while(mt_pos > 1 && merge_tree[mt_pos-1].depth == merge_tree[mt_pos-2].depth) {
-                MergeTreeEntry &mte_left = merge_tree[mt_pos-2];
-                MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
-
-                // show that implicit union between the two sets is dead
-                SetExpression implicit_union = certmgr.define_set_union(mte_left.set, mte_right.set);
-                Judgment implicit_union_dead = certmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
-
-                // the left entry represents the merged entry while the right entry will be considered deleted
-                mte_left.depth++;
-                mte_left.set = implicit_union;
-                mte_left.justification = implicit_union_dead;
-                mt_pos--;
-            }
-
-        } else if(search_space.get_node(state).is_closed()) {
-            expanded.lor(statebdd);
-        }
-        // TODO: this point of the code should never be reached, right? (either its a dead-end or closed)
-    }
-
-    std::vector<CuddBDD> bdds;
-    SetExpression  dead_end_set;
-    Judgment deadends_dead;
-
-    // no dead ends --> use empty set
-    if(dead_ends.size() == 0) {
-        dead_end_set = certmgr.get_emptyset();
-        deadends_dead = certmgr.apply_rule_ed();
-    } else {
-        // if the merge tree is not a complete binary tree, we first need to shrink it up to size 1
-        // TODO: this is copy paste from above...
-        while(mt_pos > 1) {
-            MergeTreeEntry &mte_left = merge_tree[mt_pos-2];
-            MergeTreeEntry &mte_right = merge_tree[mt_pos-1];
-
-            // show that implicit union between the two sets is dead
-            SetExpression implicit_union = certmgr.define_set_union(mte_left.set, mte_right.set);
-            Judgment implicit_union_dead = certmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
-            mt_pos--;
-            merge_tree[mt_pos-1].depth++;
-            merge_tree[mt_pos-1].set = implicit_union;
-            merge_tree[mt_pos-1].justification = implicit_union_dead;
-        }
-        bdds.push_back(dead);
-
-        // build an explicit set containing all dead ends
-        SetExpression all_dead_ends = certmgr.define_explicit_set(fact_amount, state_registry, dead_ends);
-        // show that all_de_explicit is a subset to the union of all dead ends and thus dead
-        Judgment expl_deadends_subset = certmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
-        Judgment expl_deadends_dead = certmgr.apply_rule_sd(all_dead_ends, merge_tree[0].justification, expl_deadends_subset);
-        // show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends
-        SetExpression dead_ends_bdd = certmgr.define_bdd(bdds[bdds.size()-1]);
-        Judgment bdd_subset_explicit = certmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
-        Judgment bdd_dead = certmgr.apply_rule_sd(dead_ends_bdd, expl_deadends_dead, bdd_subset_explicit);
-
-        dead_end_set = dead_ends_bdd;
-        deadends_dead = bdd_dead;
-    }
-
-    bdds.push_back(expanded);
-
-    // show that expanded states only lead to themselves and dead states
-    SetExpression expanded_set = certmgr.define_bdd(bdds[bdds.size()-1]);
-    SetExpression expanded_progressed = certmgr.define_set_progression(expanded_set, 0);
-    SetExpression expanded_union_dead = certmgr.define_set_union(expanded_set, dead_end_set);
-    SetExpression goal_set = certmgr.get_goalset();
-    SetExpression goal_intersection = certmgr.define_set_intersection(expanded_set, goal_set);
-
-    Judgment empty_dead = certmgr.apply_rule_ed();
-    Judgment progression_to_deadends = certmgr.make_statement(expanded_progressed, expanded_union_dead, "b2");
-    Judgment goal_intersection_empty = certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
-    Judgment goal_intersection_dead = certmgr.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
-    Judgment expanded_dead = certmgr.apply_rule_pg(expanded_set, progression_to_deadends, deadends_dead, goal_intersection_dead);
-
-    Judgment init_in_expanded = certmgr.make_statement(certmgr.get_initset(), expanded_set, "b1");
-    Judgment init_dead = certmgr.apply_rule_sd(certmgr.get_initset(), expanded_dead, init_in_expanded);
-    certmgr.apply_rule_ci(init_dead);
-
-    std::cout << "dumping bdds" << std::endl;
+    Judgment optimality = certmgr.apply_rule_bi(optimal_cost, init_bound);
 
     certmgr.dump_BDDs();
 
-    std::cout << "done dumping bdds" << std::endl;
-
-    /*
-      Writing the task file at the end minimizes the chances that both task and
-      proof file are there but the planner could not finish writing them.
-     */
-/*    write_certificate_task_file(varorder);
+    write_certificate_task_file(varorder);
 
     double writing_end = utils::g_timer();
-    std::cout << "Time for writing unsolvability proof: "
+    std::cout << "Time for writing optimality proof: "
               << writing_end - writing_start << std::endl;
-              */
 }
 
 

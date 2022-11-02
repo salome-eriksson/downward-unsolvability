@@ -7,6 +7,8 @@
 
 #include <limits>
 
+// TODO: decide on type for bound (unsigned, int, size_t, ...)
+
 CertificateManager::CertificateManager(
         std::string directory, std::shared_ptr<AbstractTask> task)
     : task(task), task_proxy(*task), actionset_count(0), stateset_count(0),
@@ -187,7 +189,7 @@ Judgment CertificateManager::make_statement(const SetExpression &left_set, const
 
 
 Judgment CertificateManager::apply_rule_ec() {
-    return Judgment(apply_bound_rule(emptyset.id, std::numeric_limits<size_t>::max(),
+    return Judgment(apply_bound_rule(emptyset.id, std::numeric_limits<unsigned>::max(),
                                      "ec", std::vector<size_t>()));
 }
 Judgment CertificateManager::apply_rule_tc(const SetExpression set) {
@@ -213,6 +215,12 @@ Judgment CertificateManager::apply_rule_pc(const SetExpression set, unsigned bou
         justification.push_back(succ_bound.second.id);
     }
     return Judgment(apply_bound_rule(set.id, bound, "pc", justification));
+}
+
+Judgment CertificateManager::apply_rule_bi(unsigned bound, const Judgment &init_bound) {
+    int new_kid = get_new_knowledgeid();
+    certstream << "k " << new_kid << " o " << bound << " bi " << init_bound.id << "\n";
+    return Judgment(new_kid);
 }
 
 Judgment CertificateManager::apply_rule_ur(const SetExpression &left_set, const SetExpression &right_set) {
