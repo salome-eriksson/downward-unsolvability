@@ -47,7 +47,6 @@ size_t CertificateManager::apply_subset_rule(size_t left_setid, size_t right_set
 }
 
 size_t CertificateManager::get_new_actionsetid() {
-    std::cout << "actionset count: " << actionset_count << std::endl;
     return actionset_count++;
 }
 size_t CertificateManager::get_new_statesetid() {
