@@ -99,6 +99,12 @@ int HSPMaxHeuristic::compute_heuristic(const State &ancestor_state) {
     return total_cost;
 }
 
+std::pair<SetExpression, Judgment> HSPMaxHeuristic::justify_h_value (
+        CertificateManager &certmgr, State &) {
+    std::vector<std::vector<int>> clauses;
+    return {certmgr.define_horn_formula(0, clauses), certmgr.apply_rule_ec()};
+}
+
 static shared_ptr<Heuristic> _parse(OptionParser &parser) {
     parser.document_synopsis("Max heuristic", "");
     parser.document_language_support("action costs", "supported");

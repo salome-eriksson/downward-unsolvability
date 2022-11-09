@@ -2,7 +2,7 @@
 #define EVALUATOR_H
 
 #include "evaluation_result.h"
-//#include "unsolvability/certificatemanager.h"
+#include "certificates/certificatemanager.h"
 
 #include <set>
 
@@ -80,16 +80,12 @@ public:
     */
     virtual EvaluationResult compute_result(
         EvaluationContext &eval_context) = 0;
-/*
-    // functions related to unsolvability proof generation
-    // CARE: we assume this function is called right after heuristic computation
-    virtual void store_deadend_info(EvaluationContext &) {}
 
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(EvaluationContext &, CertificateManager &) {
+    // Functions related to certificates
+    virtual std::pair<SetExpression,Judgment> justify_h_value(CertificateManager &, State &) {
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }
-*/
 
     void report_value_for_initial_state(
         const EvaluationResult &result, utils::LogProxy &log) const;
