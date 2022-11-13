@@ -12,6 +12,7 @@
 #include "../utils/logging.h"
 
 #include "../certificates/certificatemanager.h"
+#include "../task_utils/task_properties.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -203,7 +204,7 @@ SearchStatus EagerSearch::step() {
 
     const State &s = node->get_state();
     if (check_goal_and_set_plan(s)) {
-        write_certificate(calculate_plan_cost(get_plan(), task_proxy));
+        write_certificate((unsigned) calculate_plan_cost(get_plan(), task_proxy));
         return SOLVED;
     }
 
@@ -348,64 +349,54 @@ void add_options_to_parser(OptionParser &parser) {
     SearchEngine::add_options_to_parser(parser);
 }
 
-void EagerSearch::write_certificate(int optimal_cost) {
+void EagerSearch::write_certificate(unsigned optimal_cost) {
+    task_properties::verify_no_axioms(task_proxy);
+    task_properties::verify_no_conditional_effects(task_proxy);
     double writing_start = utils::g_timer();
     CertificateManager certmgr(certificate_directory, task);
     std::vector<int> varorder(task_proxy.get_variables().size());
     for(size_t i = 0; i < varorder.size(); ++i) {
         varorder[i] = i;
     }
+    int fact_amount = certmgr.get_factamount();
 
-    // group action indices according to their cost.
-    std::unordered_map<int, std::vector<int>> actions_by_cost;
-    for (size_t index = 0; index < task_proxy.get_operators().size(); ++index) {
-        OperatorProxy op = task_proxy.get_operators()[index];
-        actions_by_cost[op.get_cost()].push_back(index);
-    }
-    std::vector<int> sorted_action_costs;
-    sorted_action_costs.reserve(actions_by_cost.size());
-    for (auto& it : actions_by_cost) {
-        sorted_action_costs.push_back(it.first);
-    }
-    std::sort (sorted_action_costs.begin(), sorted_action_costs.end());
-    std::vector<SetExpression> sorted_actions;
-
-    for (int cost : sorted_action_costs) {
-        sorted_actions.push_back(certmgr.define_action(actions_by_cost[cost]));
-    }
-    SetExpression action_union = sorted_actions[0];
-    for (size_t i = 1; i < sorted_actions.size(); ++i) {
-        action_union = certmgr.define_action_set_union(action_union, sorted_actions[i]);
-    }
-    Judgment all_actions_contained = certmgr.make_statement(certmgr.get_allactions(), action_union, "b5");
-
-    std::unordered_map<int, CuddBDD> bdds_by_g_value;
-    std::unordered_map<int, std::vector<StateID>> states_by_h_value;
-    std::unordered_map<int, CuddBDD> bdds_by_h_value;
-    std::unordered_map<int, std::pair<SetExpression, Judgment>> h_bound_info;
+    std::unordered_map<unsigned, CuddBDD> bdds_by_g_value;
+    std::unordered_map<unsigned, std::vector<StateID>> states_by_h_value;
+    std::unordered_map<unsigned, CuddBDD> bdds_by_h_value;
+    std::unordered_map<unsigned, std::pair<SetExpression, Judgment>> h_bound_info;
     CuddManager manager(task);
     for (StateID id : state_registry) {
         State s = state_registry.lookup_state(id);
         SearchNode node = search_space.get_node(s);
-        int g_value = node.get_g();
-        if (g_value < optimal_cost) {
+        unsigned g_value = (unsigned) node.get_g();
+        if (g_value < optimal_cost || node.is_dead_end()) {
             CuddBDD statebdd(&manager, s);
             EvaluationContext eval_context(s);
-            int h_value = eval_context.get_evaluator_value(h_evaluator.get());
-            if  (h_value >= optimal_cost - g_value) {
+            unsigned h_value = 0;
+            if (eval_context.is_evaluator_value_infinite(h_evaluator.get())) {
+                h_value = std::numeric_limits<unsigned>::max();
+            } else {
+                h_value = eval_context.get_evaluator_value(h_evaluator.get());
+            }
+            if  (!node.is_closed() || node.is_dead_end()) {
                 states_by_h_value[h_value].push_back(id);
                 std::pair<SetExpression, Judgment> new_info = h_evaluator->justify_h_value(certmgr, s);
+                SetExpression s_set = certmgr.define_explicit_set(fact_amount, state_registry, {id});
+                Judgment s_set_subset = certmgr.make_statement(s_set, new_info.first, "b4");
+                Judgment s_set_bound = certmgr.apply_rule_sc(s_set, (unsigned) h_value, new_info.second, s_set_subset);
+                new_info = {s_set, s_set_bound};
+
                 auto res = bdds_by_h_value.insert({h_value, statebdd});
                 if (!res.second) {
                     bdds_by_h_value[h_value].lor(statebdd);
-                    h_bound_info[h_value] = new_info;
-                } else {
                     std::pair<SetExpression, Judgment> &existing_info = h_bound_info[h_value];
                     existing_info.first =
                             certmgr.define_set_union(existing_info.first, new_info.first);
                     existing_info.second =
-                            certmgr.apply_rule_uc(existing_info.first, h_value,
+                            certmgr.apply_rule_uc(existing_info.first, (unsigned) h_value,
                                                   existing_info.second, new_info.second);
+                } else {
+                    h_bound_info[h_value] = new_info;
                 }
             } else {
                 auto res = bdds_by_g_value.insert({g_value, statebdd});
@@ -416,19 +407,14 @@ void EagerSearch::write_certificate(int optimal_cost) {
         }
     }
 
-    int fact_amount = 0;
-    for (size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
-        fact_amount += task_proxy.get_variables()[i].get_domain_size();
-    }
-
-    std::vector<int> sorted_h_values;
+    std::vector<unsigned> sorted_h_values;
     sorted_h_values.reserve(states_by_h_value.size());
     for (auto& it : states_by_h_value) {
         sorted_h_values.push_back(it.first);
     }
     std::sort(sorted_h_values.begin(), sorted_h_values.end());
-    for (size_t i = sorted_h_values.size()-1; i > 0; --i) {
-        int h_value = sorted_h_values[i];
+    for (int i = (int) (sorted_h_values.size()-1); i >= 0; --i) {
+        unsigned h_value = sorted_h_values[i];
         // build one explicit state set containing all states s with h(s)=h_value
         SetExpression explicit_set =
                 certmgr.define_explicit_set(fact_amount, state_registry, states_by_h_value[h_value]);
@@ -437,94 +423,113 @@ void EagerSearch::write_certificate(int optimal_cost) {
                 certmgr.make_statement(explicit_set, h_bound_info[h_value].first, "b1");
         // derive cost bound for singular explicit set
         Judgment explicit_set_bound =
-                certmgr.apply_rule_sc(explicit_set, h_value, h_bound_info[h_value].second, explicit_subset_union);
+                certmgr.apply_rule_sc(explicit_set, (unsigned) h_value, h_bound_info[h_value].second, explicit_subset_union);
         // define bdd containing all states s with h(s) = h_value
         SetExpression bdd_set = certmgr.define_bdd(bdds_by_h_value[h_value]);
         // show that the bdd is a subset of the singular explicit set
         Judgment bdd_subset_explicit = certmgr.make_statement(bdd_set, explicit_set, "b4");
         // derive the bound for the bdd
         Judgment bdd_bound =
-                certmgr.apply_rule_sc(bdd_set, h_value, explicit_set_bound, bdd_subset_explicit);
+                certmgr.apply_rule_sc(bdd_set, (unsigned) h_value, explicit_set_bound, bdd_subset_explicit);
 
-        if (i < sorted_h_values.size()-1) {
-            int previous_h_value = sorted_h_values[i+1];
+        if ((size_t) i < sorted_h_values.size()-1) {
+            unsigned previous_h_value = sorted_h_values[i+1];
             // show that implicit union with previous bdd has same bound
             SetExpression bdd_union =
                     certmgr.define_set_union(bdd_set, h_bound_info[previous_h_value].first);
             Judgment bdd_union_bound =
-                    certmgr.apply_rule_uc(bdd_union, h_value, bdd_bound, h_bound_info[previous_h_value].second);
+                    certmgr.apply_rule_uc(bdd_union, (unsigned) h_value, bdd_bound, h_bound_info[previous_h_value].second);
             // build explicit union with the previous bdd -> it now represents all states with h(s) >= h_value
             bdds_by_h_value[h_value].lor(bdds_by_h_value[previous_h_value]);
             SetExpression new_bdd = certmgr.define_bdd(bdds_by_h_value[h_value]);
             // show that explicit union has the same bound
             Judgment new_bdd_subset =
                     certmgr.make_statement(new_bdd, bdd_union, "b1");
-            Judgment new_bdd_bound = certmgr.apply_rule_sc(new_bdd, h_value, bdd_union_bound, new_bdd_subset);
+            Judgment new_bdd_bound = certmgr.apply_rule_sc(new_bdd, (unsigned) h_value, bdd_union_bound, new_bdd_subset);
             h_bound_info[h_value] = {new_bdd, new_bdd_bound};
         } else {
             h_bound_info[h_value] = {bdd_set, bdd_bound};
         }
     }
-    if (h_bound_info.count(optimal_cost) == 0) {
+    if (h_bound_info.count(std::numeric_limits<unsigned>::max()) == 0) {
         Judgment empty_bound = certmgr.apply_rule_ec();
-        h_bound_info[optimal_cost] = {certmgr.get_emptyset(), empty_bound};
+        h_bound_info[std::numeric_limits<unsigned>::max()] = {certmgr.get_emptyset(), empty_bound};
+        sorted_h_values.push_back(std::numeric_limits<unsigned>::max());
     }
-
 
     /*
      * Create sets G_i, starting with G_optimalcost = states_by_g_value[0]
      * and iteratively building G_i+j = G_i + states_by_g_value[optimalcost-(i+j)].
      */
-    std::vector<int> sorted_bounds;
-    sorted_bounds.reserve(bdds_by_g_value.size()+1);
+    std::vector<unsigned> sorted_g_bounds;
+    sorted_g_bounds.reserve(bdds_by_g_value.size());
     for (auto& it : bdds_by_g_value) {
-        sorted_bounds.push_back(optimal_cost - it.first);
+        sorted_g_bounds.push_back(optimal_cost - it.first);
     }
-    sorted_bounds.push_back(0);
-    std::sort (sorted_bounds.begin(), sorted_bounds.end());
-    std::vector<SetExpression> bound_sets(sorted_bounds.size());
+    std::sort (sorted_g_bounds.begin(), sorted_g_bounds.end());
+    std::unordered_map<unsigned, std::pair<SetExpression, Judgment>> g_bound_info;
     CuddBDD lastBDD(&manager, false);
-    for (size_t i = sorted_bounds.size()-1; i > 0; --i) {
-        CuddBDD &bdd = bdds_by_g_value[optimal_cost-sorted_bounds[i]];
+    for (int i = (int) sorted_g_bounds.size()-1; i >= 0; --i) {
+        CuddBDD &bdd = bdds_by_g_value[optimal_cost-sorted_g_bounds[i]];
         bdd.lor(lastBDD);
         lastBDD = bdd;
-        bound_sets[i] = certmgr.define_bdd(bdd);
+        // TODO: really bad style to use a randm
+        g_bound_info[sorted_g_bounds[i]] =
+            {certmgr.define_bdd(bdd), certmgr.get_all_actions_contained_judgment()};
     }
-    bound_sets[0] = certmgr.define_bdd(CuddBDD(&manager, true));
 
-    std::vector<Judgment> bound_judgments(sorted_bounds.size());
-    bound_judgments[0] = certmgr.apply_rule_tc(bound_sets[0]);
+    std::unordered_map<unsigned, std::pair<SetExpression, Judgment>> union_bound_info;
+    SetExpression trivial_bdd = certmgr.define_bdd(CuddBDD(&manager, true));
+    union_bound_info[0] = {trivial_bdd, certmgr.apply_rule_tc(trivial_bdd)};
 
-    for (size_t si = 1; si < sorted_bounds.size(); ++si) {
-        int bound = sorted_bounds[si];
-        const SetExpression &set = bound_sets[si];
-        SetExpression goal_intersection = certmgr.define_set_intersection(set, certmgr.get_goalset());
-        Judgment empty_goal = certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
+    for (size_t si = 0; si < sorted_g_bounds.size(); ++si) {
+        unsigned bound = sorted_g_bounds[si];
+        SetExpression set = g_bound_info[bound].first;
+        SetExpression goal_intersection =
+                certmgr.define_set_intersection(set, certmgr.get_goalset());
+        Judgment empty_goal =
+                certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
 
         std::vector<std::pair<Judgment,Judgment>> successor_bounds;
-        for (size_t ai = 0 ; ai < sorted_action_costs.size(); ++ai) {
-            int action_cost = sorted_action_costs[ai];
-            int other_bound_index = std::distance(
-                        sorted_bounds.begin(),
-                        std::lower_bound(sorted_bounds.begin(), sorted_bounds.end(), bound-action_cost));
-            int h_bound = *std::lower_bound(sorted_h_values.begin(), sorted_h_values.end(), bound-action_cost);
-            const SetExpression &other_set = (si == (size_t) other_bound_index) ?
-                        h_bound_info[h_bound].first : bound_sets[other_bound_index];
-            SetExpression set_union = certmgr.define_set_union(set, other_set);
-            SetExpression progression = certmgr.define_set_progression(set, sorted_actions[ai]);
+        for (std::pair<SetExpression,int> actionset_and_cost : certmgr.get_sorted_actions()) {
+            SetExpression actionset = actionset_and_cost.first;
+            unsigned action_cost = (unsigned) actionset_and_cost.second;
+            size_t other_bound = (action_cost > bound) ? 0 : bound-action_cost;
+            std::pair<SetExpression,Judgment> other_bound_info;
+            if (union_bound_info.count(other_bound) > 0) {
+                other_bound_info = union_bound_info[other_bound];
+            } else {
+                unsigned h_bound = *std::lower_bound(
+                            sorted_h_values.begin(), sorted_h_values.end(), other_bound);
+                unsigned g_bound = *std::lower_bound(
+                            sorted_g_bounds.begin(), sorted_g_bounds.end(), other_bound);
+                unsigned lower_bound = std::min(h_bound, g_bound);
+                if (g_bound == bound) {
+                    other_bound_info = h_bound_info[h_bound];
+                } else if (union_bound_info.count(lower_bound) > 0) {
+                    other_bound_info = union_bound_info[lower_bound];
+                } else {
+                    SetExpression other_bound_union = certmgr.define_set_union(
+                                g_bound_info[g_bound].first,
+                                h_bound_info[h_bound].first);
+                    Judgment other_bound_union_judgment = certmgr.apply_rule_uc(
+                                other_bound_union, lower_bound,
+                                g_bound_info[g_bound].second, h_bound_info[h_bound].second);
+                    union_bound_info[lower_bound] = {other_bound_union, other_bound_union_judgment};
+                    other_bound_info = union_bound_info[lower_bound];
+                }
+            }
+            SetExpression set_union = certmgr.define_set_union(set, other_bound_info.first);
+            SetExpression progression = certmgr.define_set_progression(set, actionset);
             Judgment prog_judgment = certmgr.make_statement(progression, set_union, "b2");
-            Judgment succ_bound = (si == (size_t) other_bound_index) ?
-                        h_bound_info[h_bound].second : bound_judgments[other_bound_index];
-            successor_bounds.push_back({prog_judgment, succ_bound});
+            successor_bounds.push_back({prog_judgment, other_bound_info.second});
         }
-        Judgment gi_bound = certmgr.apply_rule_pc(set, bound, all_actions_contained, empty_goal, successor_bounds);
-        int h_bound = *std::lower_bound(sorted_h_values.begin(), sorted_h_values.end(), bound);
-        SetExpression bound_union = certmgr.define_set_union(set, h_bound_info[h_bound].first);
-        bound_judgments[si] = certmgr.apply_rule_uc(bound_union, bound, gi_bound, h_bound_info[h_bound].second);
+        g_bound_info[bound].second = certmgr.apply_rule_pc(set, bound, certmgr.get_all_actions_contained_judgment(),
+                                                  empty_goal, successor_bounds);
     }
 
-    Judgment init_subset = certmgr.make_statement(certmgr.get_initset(), bound_sets.back(), "b1");
-    Judgment init_bound = certmgr.apply_rule_sc(certmgr.get_initset(), optimal_cost, bound_judgments.back(), init_subset);
+    Judgment init_subset = certmgr.make_statement(certmgr.get_initset(), g_bound_info[optimal_cost].first, "b1");
+    Judgment init_bound = certmgr.apply_rule_sc(certmgr.get_initset(), (unsigned) optimal_cost, g_bound_info[optimal_cost].second, init_subset);
     certmgr.apply_rule_bi(optimal_cost, init_bound);
 
     certmgr.dump_BDDs();

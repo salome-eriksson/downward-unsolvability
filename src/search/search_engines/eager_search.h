@@ -49,7 +49,7 @@ public:
 
     void dump_search_space() const;
 
-    void write_certificate(int optimal_cost);
+    void write_certificate(unsigned optimal_cost);
     void write_certificate_task_file(const std::vector<int> &varorder);
 };
 

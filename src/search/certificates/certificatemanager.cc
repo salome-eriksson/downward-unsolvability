@@ -5,13 +5,15 @@
 #include "../utils/system.h"
 #include "../task_proxy.h"
 
+#include <algorithm>
 #include <limits>
 
 // TODO: decide on type for bound (unsigned, int, size_t, ...)
 
 CertificateManager::CertificateManager(
         std::string directory, std::shared_ptr<AbstractTask> task)
-    : task(task), task_proxy(*task), actionset_count(0), stateset_count(0),
+    : task(task), task_proxy(*task), fact_amount(0), fact_to_var(0),
+      actionset_count(0), stateset_count(0),
       knowledge_count(0), emptyset(stateset_count++), goalset(stateset_count++),
       initset(stateset_count++), allactions(actionset_count++), directory(directory) {
     certstream.open(directory + "proof.txt");
@@ -21,9 +23,51 @@ CertificateManager::CertificateManager(
     certstream << "a " << allactions.id << " a\n";
 
     hex = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e' , 'f'};
+
+    fact_to_var.resize(task_proxy.get_variables().size());
+    for(size_t var = 0; var < task_proxy.get_variables().size(); ++var) {
+        fact_to_var[var].resize(task_proxy.get_variables()[var].get_domain_size());
+        for(int val = 0; val < task_proxy.get_variables()[var].get_domain_size(); ++val) {
+            fact_to_var[var][val] = fact_amount++;
+        }
+    }
+
+    // group action indices according to their cost.
+    std::unordered_map<int, std::vector<int>> actions_by_cost;
+    for (size_t index = 0; index < task_proxy.get_operators().size(); ++index) {
+        OperatorProxy op = task_proxy.get_operators()[index];
+        actions_by_cost[op.get_cost()].push_back(index);
+    }
+    std::vector<int> sorted_action_costs;
+    sorted_action_costs.reserve(actions_by_cost.size());
+    for (auto& it : actions_by_cost) {
+        sorted_action_costs.push_back(it.first);
+    }
+    std::sort (sorted_action_costs.begin(), sorted_action_costs.end());
+    for (int cost : sorted_action_costs) {
+        sorted_actions.push_back({define_action(actions_by_cost[cost]), cost});
+    }
+    SetExpression action_union = sorted_actions[0].first;
+    for (size_t i = 1; i < sorted_actions.size(); ++i) {
+        action_union = define_action_set_union(action_union, sorted_actions[i].first);
+    }
+    all_actions_contained = make_statement(get_allactions(), action_union, "b5");
 }
 
-size_t CertificateManager::apply_bound_rule(size_t setid, size_t bound, std::string rulename,
+int CertificateManager::get_variable(size_t var, int val) const {
+    return fact_to_var[var][(size_t)val];
+}
+const std::vector<std::pair<SetExpression, int>> &CertificateManager::get_sorted_actions() const {
+    return sorted_actions;
+}
+Judgment CertificateManager::get_all_actions_contained_judgment() const {
+    return all_actions_contained;
+}
+int CertificateManager::get_factamount() const {
+    return fact_amount;
+}
+
+size_t CertificateManager::apply_bound_rule(size_t setid, unsigned bound, std::string rulename,
                                           std::vector<size_t> justification) {
     int new_kid = get_new_knowledgeid();
     certstream << "k " << new_kid << " b " << setid << " " << bound << " " << rulename;

@@ -60,6 +60,9 @@ private:
     std::shared_ptr<AbstractTask> task;
     TaskProxy task_proxy;
 
+    int fact_amount;
+    std::vector<std::vector<int>> fact_to_var;
+
     size_t actionset_count;
     size_t stateset_count;
     size_t knowledge_count;
@@ -74,17 +77,25 @@ private:
     std::string directory;
     std::vector<char> hex;
 
+    std::vector<std::pair<SetExpression, int>> sorted_actions;
+    Judgment all_actions_contained;
+
     std::unordered_map<CuddManager *, std::vector<CuddBDD>> bdds;
 
     size_t get_new_actionsetid();
     size_t get_new_statesetid();
     size_t get_new_knowledgeid();
 
-    size_t apply_bound_rule(size_t setid, size_t bound, std::string rulename, std::vector<size_t> justification);
+    size_t apply_bound_rule(size_t setid, unsigned bound, std::string rulename, std::vector<size_t> justification);
     size_t apply_subset_rule(size_t left_setid, size_t right_setid, std::string rulename, std::vector<size_t> justification);
 
 public:
     CertificateManager(std::string directory, std::shared_ptr<AbstractTask> task);
+
+    int get_variable(size_t var, int val) const;
+    const std::vector<std::pair<SetExpression, int>> &get_sorted_actions() const;
+    Judgment get_all_actions_contained_judgment() const;
+    int get_factamount() const;
 
 
     const SetExpression &get_emptyset();

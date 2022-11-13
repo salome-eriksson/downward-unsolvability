@@ -39,10 +39,6 @@ UnaryOperator::UnaryOperator(
 // TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
 RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
     : Heuristic(opts) {
-/*
-    : Heuristic(opts), unsolv_subsumption_check(false),
-      unsolvability_setup(false) {
-*/
     // Build propositions.
     propositions.resize(task_properties::get_num_facts(task_proxy));
 

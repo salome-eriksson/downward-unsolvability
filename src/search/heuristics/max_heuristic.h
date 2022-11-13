@@ -17,6 +17,9 @@ using relaxation_heuristic::UnaryOperator;
 class HSPMaxHeuristic : public relaxation_heuristic::RelaxationHeuristic {
     priority_queues::AdaptiveQueue<PropID> queue;
 
+    CuddManager manager;
+    SetExpression allstates;
+
     void setup_exploration_queue();
     void setup_exploration_queue_state(const State &state);
     void relaxed_exploration();
@@ -35,7 +38,7 @@ protected:
 public:
     explicit HSPMaxHeuristic(const options::Options &opts);
     virtual std::pair<SetExpression,Judgment> justify_h_value(
-            CertificateManager &certmgr, State &s);
+            CertificateManager &certmgr, State &s) override;
 };
 }
 
