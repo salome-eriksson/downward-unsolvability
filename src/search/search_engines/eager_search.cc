@@ -34,6 +34,7 @@ EagerSearch::EagerSearch(const Options &opts)
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
+      verify(opts.get<bool>("verify")),
       certificate_directory(opts.get<std::string>("certificate_directory")) {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
@@ -204,7 +205,9 @@ SearchStatus EagerSearch::step() {
 
     const State &s = node->get_state();
     if (check_goal_and_set_plan(s)) {
-        write_certificate((unsigned) calculate_plan_cost(get_plan(), task_proxy));
+        if (verify) {
+            write_certificate((unsigned) calculate_plan_cost(get_plan(), task_proxy));
+        }
         return SOLVED;
     }
 

@@ -173,6 +173,10 @@ void SearchEngine::add_succ_order_options(OptionParser &parser) {
 }
 
 void SearchEngine::add_certificate_options(OptionParser &parser) {
+    parser.add_option<bool>(
+        "verify",
+        "Whether or not a certificate should be generated.",
+        "true");
     parser.add_option<std::string>(
         "certificate_directory",
         "The directory in which the certificate should be written."

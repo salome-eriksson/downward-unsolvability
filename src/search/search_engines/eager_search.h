@@ -35,6 +35,7 @@ class EagerSearch : public SearchEngine {
     void update_f_value_statistics(EvaluationContext &eval_context);
     void reward_progress();
 
+    bool verify;
     std::string certificate_directory;
 
 protected:
