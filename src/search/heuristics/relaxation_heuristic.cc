@@ -328,6 +328,33 @@ std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const State &state) {
     return std::make_pair(false,bdds.size()-1);
 }
 
+int RelaxationHeuristic::create_subcertificate(EvaluationContext &eval_context) {
+    if(!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        unsolvability_setup = true;
+    }
+    std::pair<bool,int> get_bdd = get_bdd_for_state(eval_context.get_state());
+    bool bdd_already_seen = get_bdd.first;
+    // we have used this bdd for another dead end already, use this stateid
+    if(bdd_already_seen) {
+        int bddindex = get_bdd.second;
+        return bdd_to_stateid[bddindex];
+    }
+    int stateid = eval_context.get_state().get_id().get_value();
+    bdd_to_stateid.push_back(stateid);
+    return stateid;
+}
+
+void RelaxationHeuristic::write_subcertificates(const string &filename) {
+    if(!bdds.empty()) {
+        cudd_manager->dumpBDDs_certificate(bdds, bdd_to_stateid, filename);
+    } else {
+        std::ofstream cert_stream;
+        cert_stream.open(filename);
+        cert_stream.close();
+    }
+}
+
 void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     if(!unsolvability_setup) {
         cudd_manager = new CuddManager(task);

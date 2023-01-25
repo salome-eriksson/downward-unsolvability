@@ -32,6 +32,9 @@ enum SearchStatus {IN_PROGRESS, TIMEOUT, FAILED, SOLVED};
 
 enum class UnsolvabilityVerificationType {
     NONE,
+    CERTIFICATE,
+    CERTIFICATE_FASTDUMP,
+    CERTIFICATE_NOHINTS,
     PROOF,
     PROOF_DISCARD
 };

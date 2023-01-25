@@ -129,7 +129,7 @@ SetExpression UnsolvabilityManager::define_explicit_set(int fact_amount, StateRe
         certstream << i << " ";
     }
     certstream << ": ";
-    for(const StateID id : state_ids) {
+    for(const StateID &id : state_ids) {
         dump_state(state_registry.lookup_state(id));
         certstream << " ";
     }

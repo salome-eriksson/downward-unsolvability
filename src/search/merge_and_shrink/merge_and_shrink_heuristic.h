@@ -32,6 +32,12 @@ class MergeAndShrinkHeuristic : public Heuristic {
     std::pair<SetExpression, Judgment> set_and_dead_knowledge;
     bool deadends_shown_dead;
 
+    // functions and variables related to unsolvability certificate generation
+    int bdd_to_stateid;
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
+
     void get_bdd();
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;

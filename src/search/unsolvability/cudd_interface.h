@@ -95,6 +95,7 @@ public:
     CUDD_METHOD(CuddManager(std::shared_ptr<AbstractTask> task))
     CUDD_METHOD(CuddManager(std::shared_ptr<AbstractTask> task, std::vector<int> &var_order))
     CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
+    CUDD_METHOD(void dumpBDDs_certificate(std::vector<CuddBDD> &bdds, std::vector<int> &indices, const std::string &filename) const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD> &bdds, std::string directory) const)
     CUDD_METHOD(static void set_compact_proof(bool val))
     CUDD_METHOD(std::string get_filename() const)

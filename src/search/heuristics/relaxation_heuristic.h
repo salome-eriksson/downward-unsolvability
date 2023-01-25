@@ -73,6 +73,7 @@ protected:
     std::unordered_map<int,int> state_to_bddindex;
     std::unordered_map<int, std::pair<SetExpression,Judgment>> knowledge_for_bdd;
     bool unsolvability_setup;
+    std::vector<int> bdd_to_stateid;
 
     array_pool::ArrayPool preconditions_pool;
     array_pool::ArrayPool precondition_of_pool;
@@ -128,6 +129,10 @@ public:
     explicit RelaxationHeuristic(const options::Options &options);
 
     virtual bool dead_ends_are_reliable() const override;
+
+    // functions related to unsolvability certificate generation
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
 
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;

@@ -221,6 +221,27 @@ const std::vector<std::vector<int> > *CuddManager::get_fact_to_var() const {
     return &fact_to_var;
 }
 
+void CuddManager::dumpBDDs_certificate(std::vector<CuddBDD> &bdds, std::vector<int> &indices, const std::string &filename) const {
+    int size = bdds.size();
+    std::ofstream filestream;
+    filestream.open(filename);
+    if (size > 0) {
+        filestream << size;
+        DdNode** bdd_arr = new DdNode*[size];
+        for(int i = 0; i < size; ++i) {
+            bdd_arr[i] = bdds[i].bdd;
+            filestream << " " << indices[i];
+        }
+        filestream << "\n";
+        filestream.close();
+        FILE *fp;
+        fp = fopen(filename.c_str(), "a");
+        Dddmp_cuddBddArrayStore(ddmgr, NULL, size, &bdd_arr[0], NULL,
+                                NULL, NULL, DDDMP_MODE_TEXT, DDDMP_VARIDS, NULL, fp);
+    }
+    filestream.close();
+}
+
 void CuddManager::dumpBDDs(std::vector<CuddBDD> &bdds, std::string directory) const {
     std::ofstream stream;
     std::string full_filename = directory+filename;
