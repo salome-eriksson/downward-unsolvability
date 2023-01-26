@@ -11,6 +11,9 @@ protected:
 public:
     BlindSearchHeuristic(const options::Options &opts);
     ~BlindSearchHeuristic();
+
+    // functions related to unsolvability certificate generation
+    virtual void write_subcertificates(const std::string &filename) override;
 };
 }
 

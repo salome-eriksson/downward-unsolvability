@@ -22,6 +22,12 @@ BlindSearchHeuristic::BlindSearchHeuristic(const Options &opts)
 BlindSearchHeuristic::~BlindSearchHeuristic() {
 }
 
+void BlindSearchHeuristic::write_subcertificates(const std::string &filename) {
+    std::ofstream cert_stream;
+    cert_stream.open(filename);
+    cert_stream.close();
+}
+
 int BlindSearchHeuristic::compute_heuristic(const State &ancestor_state) {
     State state = convert_ancestor_state(ancestor_state);
     if (task_properties::is_goal_state(task_proxy, state))
