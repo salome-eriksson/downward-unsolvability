@@ -130,10 +130,6 @@ public:
 
     virtual bool dead_ends_are_reliable() const override;
 
-    // functions related to unsolvability certificate generation
-    virtual int create_subcertificate(EvaluationContext &eval_context) override;
-    virtual void write_subcertificates(const std::string &filename) override;
-
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(

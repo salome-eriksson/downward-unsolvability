@@ -216,9 +216,6 @@ void collect_preferred_operators(
 
 static plugins::TypedEnumPlugin<UnsolvabilityVerificationType> _enum_plugin({
    {"none", ""},
-   {"certificate", ""},
-   {"certificate_fastdump", ""},
-   {"certificate_nohints", ""},
    {"proof", ""},
    {"proof_discard", ""}
 });

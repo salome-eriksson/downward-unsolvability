@@ -53,16 +53,6 @@ void CombiningEvaluator::get_path_dependent_evaluators(
         subevaluator->get_path_dependent_evaluators(evals);
 }
 
-int CombiningEvaluator::create_subcertificate(EvaluationContext &eval_context) {
-    for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
-        if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
-            return subevaluator->create_subcertificate(eval_context);
-        }
-    }
-    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
-    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-}
-
 void CombiningEvaluator::store_deadend_info(EvaluationContext &eval_context) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {

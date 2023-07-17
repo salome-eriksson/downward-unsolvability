@@ -49,10 +49,6 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
 
-    virtual int create_subcertificate(EvaluationContext &eval_context) override;
-    virtual void write_subcertificates(const std::string &filename) override;
-    virtual std::vector<int> get_varorder() override;
-
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
@@ -143,38 +139,6 @@ bool TieBreakingOpenList<Entry>::is_reliable_dead_end(
             evaluator->dead_ends_are_reliable())
             return true;
     return false;
-}
-
-template<class Entry>
-int TieBreakingOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
-    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
-        if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
-            return evaluator->create_subcertificate(eval_context);
-        }
-    }
-    std::cerr << "Requested subcertificate for non-dead state." << std::endl;
-    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-}
-
-template<class Entry>
-void TieBreakingOpenList<Entry>::write_subcertificates(const std::string &filename) {
-    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
-        evaluator->write_subcertificates(filename);
-    }
-}
-
-template<class Entry>
-std::vector<int> TieBreakingOpenList<Entry>::get_varorder() {
-    std::vector<int> varorder;
-    for (const shared_ptr<Evaluator> &evaluator : evaluators) {
-        if(varorder.empty()) {
-            varorder = evaluator->get_varorder();
-        } else if(varorder != evaluator->get_varorder()) {
-            std::cerr << "Different varorders in certificate!" << std::endl;
-            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-        }
-    }
-    return varorder;
 }
 
 template<class Entry>

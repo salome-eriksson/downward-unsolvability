@@ -22,7 +22,7 @@ using utils::ExitCode;
 
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const plugins::Options &opts)
-    : Heuristic(opts), bdd_to_stateid(-1)  {
+    : Heuristic(opts)  {
     log << "Initializing merge-and-shrink heuristic..." << endl;
     MergeAndShrinkAlgorithm algorithm(opts);
     FactoredTransitionSystem fts = algorithm.build_factored_transition_system(task_proxy);
@@ -148,29 +148,7 @@ void MergeAndShrinkHeuristic::get_bdd() {
     bdd = mas_representations[0]->get_deadend_bdd(cudd_manager, bdd_map, true);
 }
 
-int MergeAndShrinkHeuristic::create_subcertificate(EvaluationContext &eval_context) {
-    if(bdd_to_stateid == -1) {
-        bdd_to_stateid = eval_context.get_state().get_id().get_value();
-    }
-    return bdd_to_stateid;
-}
 
-void MergeAndShrinkHeuristic::write_subcertificates(const string &filename) {
-    if(bdd_to_stateid > -1) {
-        get_bdd();
-        std::vector<CuddBDD> bddvec(1,*bdd);
-        std::vector<int> stateidvec(1,bdd_to_stateid);
-        cudd_manager->dumpBDDs_certificate(bddvec, stateidvec, filename);
-    } else {
-        std::ofstream cert_stream;
-        cert_stream.open(filename);
-        cert_stream.close();
-    }
-}
-
-std::vector<int> MergeAndShrinkHeuristic::get_varorder() {
-    return variable_order;
-}
 
 std::pair<SetExpression,Judgment> MergeAndShrinkHeuristic::get_dead_end_justification(
         EvaluationContext &, UnsolvabilityManager &unsolvmanager) {

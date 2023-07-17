@@ -36,7 +36,7 @@ public:
         return !(*this == other);
     }
 
-    //TODO: only needed for certificates, find a way around this
+    //TODO: only needed for storing dead-end info, find a way around this
     int get_value() const {
         return value;
     }

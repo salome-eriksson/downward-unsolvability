@@ -35,7 +35,6 @@ class EagerSearch : public SearchEngine {
     void reward_progress();
 
     std::string unsolvability_directory;
-    std::ofstream unsolvability_certificate_hints;
 
 protected:
     virtual void initialize() override;
@@ -49,7 +48,6 @@ public:
 
     void dump_search_space() const;
 
-    void write_unsolvability_certificate();
     void write_unsolvability_proof();
     void write_unsolvability_task_file(const std::vector<int> &varorder);
 };
