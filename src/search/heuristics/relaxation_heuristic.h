@@ -126,7 +126,7 @@ protected:
      */
     std::pair<bool,int> get_bdd_for_state(const State &state);
 public:
-    explicit RelaxationHeuristic(const options::Options &options);
+    explicit RelaxationHeuristic(const plugins::Options &options);
 
     virtual bool dead_ends_are_reliable() const override;
 

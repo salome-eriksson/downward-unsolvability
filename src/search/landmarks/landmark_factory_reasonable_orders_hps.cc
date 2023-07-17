@@ -5,28 +5,33 @@
 
 #include "util.h"
 
-#include "../option_parser.h"
-#include "../plugin.h"
-
+#include "../plugins/plugin.h"
 #include "../utils/logging.h"
 #include "../utils/markup.h"
 
 using namespace std;
 namespace landmarks {
-LandmarkFactoryReasonableOrdersHPS::LandmarkFactoryReasonableOrdersHPS(const Options &opts)
-    : lm_factory(opts.get<shared_ptr<LandmarkFactory>>("lm_factory")) {
+LandmarkFactoryReasonableOrdersHPS::LandmarkFactoryReasonableOrdersHPS(const plugins::Options &opts)
+    : LandmarkFactory(opts),
+      lm_factory(opts.get<shared_ptr<LandmarkFactory>>("lm_factory")) {
 }
 
 void LandmarkFactoryReasonableOrdersHPS::generate_landmarks(const shared_ptr<AbstractTask> &task) {
-    utils::g_log << "Building a landmark graph with reasonable orders." << endl;
+    if (log.is_at_least_normal()) {
+        log << "Building a landmark graph with reasonable orders." << endl;
+    }
 
     lm_graph = lm_factory->compute_lm_graph(task);
     achievers_calculated = lm_factory->achievers_are_calculated();
 
     TaskProxy task_proxy(*task);
-    utils::g_log << "approx. reasonable orders" << endl;
+    if (log.is_at_least_normal()) {
+        log << "approx. reasonable orders" << endl;
+    }
     approximate_reasonable_orders(task_proxy, false);
-    utils::g_log << "approx. obedient reasonable orders" << endl;
+    if (log.is_at_least_normal()) {
+        log << "approx. obedient reasonable orders" << endl;
+    }
     approximate_reasonable_orders(task_proxy, true);
 
     mk_acyclic_graph();
@@ -372,32 +377,31 @@ bool LandmarkFactoryReasonableOrdersHPS::supports_conditional_effects() const {
     return lm_factory->supports_conditional_effects();
 }
 
+class LandmarkFactoryReasonableOrdersHPSFeature : public plugins::TypedFeature<LandmarkFactory, LandmarkFactoryReasonableOrdersHPS> {
+public:
+    LandmarkFactoryReasonableOrdersHPSFeature() : TypedFeature("lm_reasonable_orders_hps") {
+        document_title("HPS Orders");
+        document_synopsis(
+            "Adds reasonable orders and obedient reasonable orders "
+            "described in the following paper" +
+            utils::format_journal_reference(
+                {"Jörg Hoffmann", "Julie Porteous", "Laura Sebastia"},
+                "Ordered Landmarks in Planning",
+                "https://jair.org/index.php/jair/article/view/10390/24882",
+                "Journal of Artificial Intelligence Research",
+                "22",
+                "215-278",
+                "2004"));
 
-static shared_ptr<LandmarkFactory> _parse(OptionParser &parser) {
-    parser.document_synopsis(
-        "HPS Orders",
-        "Adds reasonable orders and obedient reasonable orders "
-        "described in the following paper" +
-        utils::format_journal_reference(
-            {"Jörg Hoffmann", "Julie Porteous", "Laura Sebastia"},
-            "Ordered Landmarks in Planning",
-            "https://jair.org/index.php/jair/article/view/10390/24882",
-            "Journal of Artificial Intelligence Research",
-            "22",
-            "215-278",
-            "2004"));
-    parser.add_option<shared_ptr<LandmarkFactory>>("lm_factory");
-    Options opts = parser.parse();
+        add_option<shared_ptr<LandmarkFactory>>("lm_factory");
+        add_landmark_factory_options_to_feature(*this);
 
-    // TODO: correct?
-    parser.document_language_support("conditional_effects",
-                                     "supported if subcomponent supports them");
+        // TODO: correct?
+        document_language_support(
+            "conditional_effects",
+            "supported if subcomponent supports them");
+    }
+};
 
-    if (parser.dry_run())
-        return nullptr;
-    else
-        return make_shared<LandmarkFactoryReasonableOrdersHPS>(opts);
-}
-
-static Plugin<LandmarkFactory> _plugin("lm_reasonable_orders_hps", _parse);
+static plugins::FeaturePlugin<LandmarkFactoryReasonableOrdersHPSFeature> _plugin;
 }

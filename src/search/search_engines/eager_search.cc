@@ -3,12 +3,11 @@
 #include "../evaluation_context.h"
 #include "../evaluator.h"
 #include "../open_list_factory.h"
-#include "../option_parser.h"
 #include "../pruning_method.h"
 
 #include "../algorithms/ordered_set.h"
+#include "../plugins/options.h"
 #include "../task_utils/successor_generator.h"
-
 #include "../utils/logging.h"
 
 #include "../unsolvability/unsolvabilitymanager.h"
@@ -22,7 +21,7 @@
 using namespace std;
 
 namespace eager_search {
-EagerSearch::EagerSearch(const Options &opts)
+EagerSearch::EagerSearch(const plugins::Options &opts)
     : SearchEngine(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
       unsolv_type(opts.get<UnsolvabilityVerificationType>("unsolv_verification")),
@@ -32,7 +31,8 @@ EagerSearch::EagerSearch(const Options &opts)
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
-      unsolvability_directory(opts.get<std::string>("unsolv_directory")) {
+//      unsolvability_directory(opts.get<std::string>("unsolv_directory")) {
+      unsolvability_directory(".") {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -69,6 +69,7 @@ EagerSearch::EagerSearch(const Options &opts)
             CuddManager::set_compact_proof(false);
         } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
             CuddManager::set_compact_proof(true);
+            cout << "writing proof" << endl;
         }
     }
 }
@@ -143,7 +144,7 @@ void EagerSearch::initialize() {
         open_list->insert(eval_context, initial_state.get_id());
     }
 
-    print_initial_evaluator_values(eval_context, log);
+    print_initial_evaluator_values(eval_context);
 
     pruning_method->initialize(task);
 
@@ -406,9 +407,10 @@ void EagerSearch::update_f_value_statistics(EvaluationContext &eval_context) {
     }
 }
 
-void add_options_to_parser(OptionParser &parser) {
-    SearchEngine::add_pruning_option(parser);
-    SearchEngine::add_options_to_parser(parser);
+void add_options_to_feature(plugins::Feature &feature) {
+    SearchEngine::add_pruning_option(feature);
+    SearchEngine::add_options_to_feature(feature);
+    SearchEngine::add_unsolvability_options(feature);
 }
 
 void dump_statebdd(const State &s, std::ofstream &statebdd_file,

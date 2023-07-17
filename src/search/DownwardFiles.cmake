@@ -1,4 +1,4 @@
-# See http://www.fast-downward.org/ForDevelopers/AddingSourceFiles
+# See https://www.fast-downward.org/ForDevelopers/AddingSourceFiles
 # for general information on adding source files and CMake plugins.
 #
 # All plugins are enabled by default and users can disable them by specifying
@@ -60,14 +60,11 @@ fast_downward_plugin(
         open_list_factory
         operator_cost
         operator_id
-        option_parser
-        option_parser_util
         per_state_array
         per_state_bitset
         per_state_information
         per_task_information
         plan_manager
-        plugin
         pruning_method
         search_engine
         search_node_info
@@ -85,22 +82,31 @@ fast_downward_plugin(
 )
 
 fast_downward_plugin(
-    NAME OPTIONS
-    HELP "Option parsing and plugin definition"
+    NAME PLUGINS
+    HELP "Plugin definition"
     SOURCES
-        options/any
-        options/bounds
-        options/doc_printer
-        options/doc_utils
-        options/errors
-        options/option_parser
-        options/options
-        options/parse_tree
-        options/predefinitions
-        options/plugin
-        options/raw_registry
-        options/registries
-        options/type_namer
+        plugins/any
+        plugins/bounds
+        plugins/doc_printer
+        plugins/options
+        plugins/plugin
+        plugins/plugin_info
+        plugins/raw_registry
+        plugins/registry
+        plugins/registry_types
+        plugins/types
+    CORE_PLUGIN
+)
+
+fast_downward_plugin(
+    NAME PARSER
+    HELP "Option parsing"
+    SOURCES
+        parser/abstract_syntax_tree
+        parser/decorated_abstract_syntax_tree
+        parser/lexical_analyzer
+        parser/syntax_analyzer
+        parser/token_stream
     CORE_PLUGIN
 )
 
@@ -250,10 +256,10 @@ fast_downward_plugin(
 )
 
 fast_downward_plugin(
-    NAME EVALUATORS_PLUGIN_GROUP
-    HELP "Plugin group for basic evaluators"
+    NAME EVALUATORS_SUBCATEGORY
+    HELP "Subcategory plugin for basic evaluators"
     SOURCES
-        evaluators/plugin_group
+        evaluators/subcategory
 )
 
 fast_downward_plugin(
@@ -261,7 +267,7 @@ fast_downward_plugin(
     HELP "The constant evaluator"
     SOURCES
         evaluators/const_evaluator
-    DEPENDS EVALUATORS_PLUGIN_GROUP
+    DEPENDS EVALUATORS_SUBCATEGORY
 )
 
 fast_downward_plugin(
@@ -269,7 +275,7 @@ fast_downward_plugin(
     HELP "The g-evaluator"
     SOURCES
         evaluators/g_evaluator
-    DEPENDS EVALUATORS_PLUGIN_GROUP
+    DEPENDS EVALUATORS_SUBCATEGORY
 )
 
 fast_downward_plugin(
@@ -285,7 +291,7 @@ fast_downward_plugin(
     HELP "The max evaluator"
     SOURCES
         evaluators/max_evaluator
-    DEPENDS COMBINING_EVALUATOR EVALUATORS_PLUGIN_GROUP
+    DEPENDS COMBINING_EVALUATOR EVALUATORS_SUBCATEGORY
 )
 
 fast_downward_plugin(
@@ -293,7 +299,7 @@ fast_downward_plugin(
     HELP "The pref evaluator"
     SOURCES
         evaluators/pref_evaluator
-    DEPENDS EVALUATORS_PLUGIN_GROUP
+    DEPENDS EVALUATORS_SUBCATEGORY
 )
 
 fast_downward_plugin(
@@ -301,7 +307,7 @@ fast_downward_plugin(
     HELP "The weighted evaluator"
     SOURCES
         evaluators/weighted_evaluator
-    DEPENDS EVALUATORS_PLUGIN_GROUP
+    DEPENDS EVALUATORS_SUBCATEGORY
 )
 
 fast_downward_plugin(
@@ -309,7 +315,7 @@ fast_downward_plugin(
     HELP "The sum evaluator"
     SOURCES
         evaluators/sum_evaluator
-    DEPENDS COMBINING_EVALUATOR EVALUATORS_PLUGIN_GROUP
+    DEPENDS COMBINING_EVALUATOR EVALUATORS_SUBCATEGORY
 )
 
 fast_downward_plugin(
@@ -337,6 +343,15 @@ fast_downward_plugin(
 )
 
 fast_downward_plugin(
+    NAME STUBBORN_SETS_ACTION_CENTRIC
+    HELP "Base class for all action-centric stubborn set partial order reduction methods"
+    SOURCES
+        pruning/stubborn_sets_action_centric
+    DEPENDS STUBBORN_SETS
+    DEPENDENCY_ONLY
+)
+
+fast_downward_plugin(
     NAME STUBBORN_SETS_ATOM_CENTRIC
     HELP "Atom-centric stubborn sets"
     SOURCES
@@ -349,7 +364,7 @@ fast_downward_plugin(
     HELP "Stubborn sets simple"
     SOURCES
         pruning/stubborn_sets_simple
-    DEPENDS STUBBORN_SETS
+    DEPENDS STUBBORN_SETS_ACTION_CENTRIC
 )
 
 fast_downward_plugin(
@@ -357,7 +372,7 @@ fast_downward_plugin(
     HELP "Stubborn set method that dominates expansion core"
     SOURCES
         pruning/stubborn_sets_ec
-    DEPENDS STUBBORN_SETS TASK_PROPERTIES
+    DEPENDS STUBBORN_SETS_ACTION_CENTRIC TASK_PROPERTIES
 )
 
 fast_downward_plugin(
@@ -662,7 +677,6 @@ fast_downward_plugin(
         merge_and_shrink/distances
         merge_and_shrink/factored_transition_system
         merge_and_shrink/fts_factory
-        merge_and_shrink/label_equivalence_relation
         merge_and_shrink/label_reduction
         merge_and_shrink/labels
         merge_and_shrink/merge_and_shrink_algorithm
@@ -706,7 +720,7 @@ fast_downward_plugin(
         landmarks/exploration
         landmarks/landmark
         landmarks/landmark_cost_assignment
-        landmarks/landmark_count_heuristic
+        landmarks/landmark_cost_partitioning_heuristic
         landmarks/landmark_factory
         landmarks/landmark_factory_h_m
         landmarks/landmark_factory_reasonable_orders_hps
@@ -716,7 +730,9 @@ fast_downward_plugin(
         landmarks/landmark_factory_rpg_sasp
         landmarks/landmark_factory_zhu_givan
         landmarks/landmark_graph
+        landmarks/landmark_heuristic
         landmarks/landmark_status_manager
+        landmarks/landmark_sum_heuristic
         landmarks/util
     DEPENDS LP_SOLVER PRIORITY_QUEUES SUCCESSOR_GENERATOR TASK_PROPERTIES
 )
@@ -738,6 +754,7 @@ fast_downward_plugin(
     NAME PDBS
     HELP "Plugin containing the code for PDBs"
     SOURCES
+        pdbs/abstract_operator
         pdbs/canonical_pdbs
         pdbs/canonical_pdbs_heuristic
         pdbs/cegar
@@ -756,6 +773,7 @@ fast_downward_plugin(
         pdbs/pattern_collection_generator_multiple_random
         pdbs/pattern_collection_generator_multiple
         pdbs/pattern_collection_generator_systematic
+        pdbs/pattern_database_factory
         pdbs/pattern_database
         pdbs/pattern_generator_cegar
         pdbs/pattern_generator_greedy
@@ -764,8 +782,8 @@ fast_downward_plugin(
         pdbs/pattern_generator
         pdbs/pattern_information
         pdbs/pdb_heuristic
-        pdbs/plugin_group
         pdbs/random_pattern
+        pdbs/subcategory
         pdbs/types
         pdbs/utils
         pdbs/validation
@@ -779,13 +797,13 @@ fast_downward_plugin(
     HELP "Plugin containing the code for potential heuristics"
     SOURCES
         potentials/diverse_potential_heuristics
-        potentials/plugin_group
         potentials/potential_function
         potentials/potential_heuristic
         potentials/potential_max_heuristic
         potentials/potential_optimizer
         potentials/sample_based_potential_heuristics
         potentials/single_potential_heuristics
+        potentials/subcategory
         potentials/util
     DEPENDS LP_SOLVER SAMPLING SUCCESSOR_GENERATOR TASK_PROPERTIES
 )

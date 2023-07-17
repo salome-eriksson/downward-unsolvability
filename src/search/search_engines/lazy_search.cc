@@ -1,9 +1,9 @@
 #include "lazy_search.h"
 
 #include "../open_list_factory.h"
-#include "../option_parser.h"
 
 #include "../algorithms/ordered_set.h"
+#include "../plugins/options.h"
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/logging.h"
@@ -17,7 +17,7 @@
 using namespace std;
 
 namespace lazy_search {
-LazySearch::LazySearch(const Options &opts)
+LazySearch::LazySearch(const plugins::Options &opts)
     : SearchEngine(opts),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_edge_open_list()),
@@ -202,7 +202,7 @@ SearchStatus LazySearch::step() {
             statistics.inc_dead_ends();
         }
         if (current_predecessor_id == StateID::no_state) {
-            print_initial_evaluator_values(current_eval_context, log);
+            print_initial_evaluator_values(current_eval_context);
         }
     }
     return fetch_next_state();

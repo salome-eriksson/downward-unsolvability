@@ -9,6 +9,182 @@ For more details, check the repository history
 (<https://issues.fast-downward.org>). Repository branches are named
 after the corresponding tracker issues.
 
+## Changes since the last release
+
+- option parser: We implemented a new way of defining features and
+  parsing them from the command line. The new parser now supports
+  defining variables for features (heuristics and landmark graphs so
+  far) within the option string. For example
+    `let(h, lmcut(), astar(h))`.
+  This change to the parser was an important stepping stone towards
+  solving a more general problem about how components interact.
+  Details of the new parser are described in a blog article. While
+  working on this, we also improved the existing documentation of enum
+  values.
+  <https://www.fast-downward.org/ForDevelopers/Blog/TheNewOptionParser>
+  <https://issues.fast-downward.org/issue1073>
+  <https://issues.fast-downward.org/issue1040>
+
+- landmarks: Refactor the computation of preferred operators in the
+  `lmcount` heuristic. The change affects configurations based on
+  LAMA that use preferred operators. While the semantics of the code did
+  not change, the new version is slightly faster and can solve more 
+  tasks and/or improves plan quality in an anytime configuration within 
+  the same time limit.
+  <https://issues.fast-downward.org/issue1070>
+
+## Fast Downward 22.12
+
+Released on December 15, 2022.
+
+Highlights:
+
+- We now test more recent versions of Ubuntu Linux (22.04 and 20.04),
+  macOS (11 and 12) and Python (3.8 and 3.10).
+
+- Most search algorithms are now faster. We fixed a performance
+  problem related to state pruning, which also affected search
+  configurations that did not explicitly select a pruning method.
+
+- All landmark factories now respect action costs. Previously, this
+  was only the case when using admissible landmark heuristic or when
+  using the `lm_rhw` landmark factory. Note that ignoring action costs
+  (i.e., the old behaviour for landmark factories other than `lm_rhw`)
+  often finds plans faster and is still possible with the
+  `adapt_costs` transformation.
+
+Details:
+
+- driver: Planner time is now logged in a consistent format.
+  Previously, it would sometimes be logged in scientific notation.
+
+- driver, for developers: Skip __pycache__ directory when collecting
+  portfolios.
+  <https://issues.fast-downward.org/issue1057>
+
+- translator: Allow importing pddl_parser without parsing arguments
+  from command line.
+  <https://issues.fast-downward.org/issue1068>
+
+- pruning methods: Fix a performance regression caused by spending too
+  much time measuring elapsed time. This is now only done at verbosity
+  level `verbose` or higher. Verbosity level parameter added to all
+  pruning methods.
+  <https://issues.fast-downward.org/issue1058>
+  Note that most search algorithms in Fast Downward always use a
+  pruning method (a trivial method pruning nothing is used by default)
+  and were therefore affected by this performance problem.
+
+- pruning methods, for developers: We cleaned up the internal
+  structure of stubborn set pruning.
+  <https://issues.fast-downward.org/issue1059>
+
+- landmarks: All landmark factories are now sensitive to action costs.
+  <https://issues.fast-downward.org/issue1009>
+  When using the `lmcount` heuristic in inadmissible mode (option
+  `admissible=false`), previously only the `lm_rhw` landmark factory
+  considered action costs. Now, all landmark factories do. (This was
+  already the case with `admissible=true`.)
+  Experiments show that ignoring action costs is often beneficial when
+  we are more interested in planner speed or coverage than plan
+  quality. This can be achieved by using the option
+  `transform=adapt_costs(ONE)`.
+
+- landmarks: Reduce verbosity of h^m landmarks.
+  The `lm_hm` landmark factory is now less verbose by default. Use
+  verbosity level `verbose` or higher to enable the previous output.
+
+- infrastructure: Update tested OS versions and clang-tidy version.
+  <https://issues.fast-downward.org/issue1067>
+  - The tested Ubuntu versions are now 22.04 and 20.04.
+  - The tested macOS versions are now macOS 11 and macOS 12.
+  - The tested Windows version remains Windows 10.
+  - We now test Python 3.10 (Ubuntu 22.04, macOS 12)
+    and Python 3.8 (Ubuntu 20.04, macOS11, Windows 10).
+  - We now use clang-tidy-12.
+   See `README.md` for details.
+
+- infrastructure: Update delete-artifact version number in GitHub
+  action, update zlib version in Windows build.
+
+## Fast Downward 22.06.1
+
+Released on September 15, 2022.
+
+This is a bugfix release fixing two serious bugs in Fast Downward
+22.06:
+
+- Driver configurations relying on certain kinds of time limits (using
+  the `--overall-time-limit` option or portfolios) crashed when using
+  Python 3.10.
+  <https://issues.fast-downward.org/issue1064>
+
+- Using post-hoc optimization constraints (`pho_constraints`) caused
+  crashes (segmentation faults) or other undefined behavior.
+  <https://issues.fast-downward.org/issue1061>
+
+
+## Fast Downward 22.06
+
+Released on June 16, 2022.
+
+Highlights:
+
+- We fixed a bug in the translator component that could lead to
+  incorrect behavior in tasks where predicates are mentioned in the
+  goal that are not modified by any actions.
+
+- Various speed improvements to landmark factories. This is part of a
+  larger ongoing clean-up of the landmark code.
+
+- More informative output, and more control over the output. The
+  driver now prints the total runtime of all components. For many
+  planner components, including all heuristics, the verbosity level
+  can now be configured individually.
+
+Details:
+
+- translator: Fix a bug where the translator would not check goal
+  conditions on predicates that are not modified by actions.
+  <https://issues.fast-downward.org/issue1055>
+
+- driver: Print overall planner resource limits and overall planner
+  runtime on Linux and macOS systems.
+  <https://issues.fast-downward.org/issue1056>
+
+- logging: verbosity option for all evaluators
+  <https://issues.fast-downward.org/issue921>
+  All evaluators and heuristics now have their own configurable logger
+  and no longer use g_log. These loggers have a verbosity option,
+  which allows choosing between silent, normal, verbose and debug for
+  all instances of evaluators created on the command line.
+
+- landmarks: Speed up landmark generation time by 10-20% for `lm_rhw`,
+  `lm_zg`, and `lm_exhaust` by avoiding unnecessary computations in
+  the landmark exploration.
+  <https://issues.fast-downward.org/issue1044>
+
+- landmarks: Speed up landmark generation time by 5-15% for `lm_rhw`,
+  `lm_zg`, and `lm_exhaust` by computing reachability in the landmark
+  exploration as boolean information instead of (unused) integer
+  cost/level information.
+  <https://issues.fast-downward.org/issue1045>
+
+- landmarks: Improve landmark dead-end detection so that relevant
+  static information is only computed once, instead of at every state
+  evaluation.
+  <https://issues.fast-downward.org/issue1049>
+
+- infrastructure: Upgrade GitHub Actions to Windows Server 2019
+  (Visual Studio Enterprise 2019) and Windows Server 2022 (Visual
+  Studio Enterprise 2022). Remove Windows Server 2016, because GitHub
+  Actions no longer support it.
+  <https://issues.fast-downward.org/issue1054>
+
+- infrastructure: Run GitHub Actions only for the following branches:
+  `main`, `issue*`, `release-*`.
+  <https://issues.fast-downward.org/issue1027>
+
 ## Fast Downward 21.12
 
 Released on February 16, 2022.
@@ -52,9 +228,9 @@ Highlights:
   planner are planned. This is part of a general effort to make
   logging more configurable.
 
-- For developers: the internal representation of states has been
+- For developers: The internal representation of states has been
   overhauled, resolving the confusion between the previous classes
-  GlobalState and State.
+  `GlobalState` and `State`.
 
 Details:
 
@@ -66,8 +242,8 @@ Details:
   alternative suggestions including the ever so popular "truck falling
   down the hill" logo.
 
-- fast-downward.py main script: the script now automatically finds domain
-  files <taskfile>-domain.<ext> for task files called <taskfile>.<ext>
+- fast-downward.py main script: The script now automatically finds domain
+  files `<taskfile>-domain.<ext>` for task files called `<taskfile>.<ext>`
   <https://issues.fast-downward.org/issue1033>
 
 - pdbs: Integrate the Rovner et al. pattern generation methods based
@@ -115,7 +291,7 @@ Details:
   against using this feature when running experiments.
 
 - LP/IP, for developers: Debug builds with LP solvers vs. the
-  `_GLIBCXX_DEBUG` flag
+  `_GLIBCXX_DEBUG` flag.
   <https://issues.fast-downward.org/issue982>
   Previously, we used the flag `_GLIBCXX_DEBUG` in debug builds for
   additional checks. This makes the binary incompatible with external
@@ -127,7 +303,7 @@ Details:
 
 - pruning: New `LimitedPruning` class replaces previous limitation
   options of individual pruning methods.
-  <http://issues.fast-downward.org/issue1042>
+  <https://issues.fast-downward.org/issue1042>
   For example, the old command line
   `--search "astar(lmcut(),pruning=atom_centric_stubborn_sets(min_required_pruning_ratio=0.2,expansions_before_checking_pruning_ratio=1000))"`
   is now expressed as
@@ -224,7 +400,7 @@ Details:
   We unified the classes `GlobalState` and `State` into a new class
   also called `State`. This removed a lot of code duplication and hacks
   from the code. A description of the new class can be found in the wiki:
-  <https://www.fast-downward.org/ForDevelopers/Blog/A%20Deeper%20Look%20at%20States>
+  <https://www.fast-downward.org/ForDevelopers/Blog/ADeeperLookAtStates>
 
 - for developers: Change public interface of generation of random ints and
   doubles in the `RandomNumberGenerator` class.

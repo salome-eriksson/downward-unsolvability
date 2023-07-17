@@ -12,9 +12,8 @@
 class Evaluator;
 class PruningMethod;
 
-namespace options {
-class OptionParser;
-class Options;
+namespace plugins {
+class Feature;
 }
 
 namespace eager_search {
@@ -43,7 +42,7 @@ protected:
     virtual SearchStatus step() override;
 
 public:
-    explicit EagerSearch(const options::Options &opts);
+    explicit EagerSearch(const plugins::Options &opts);
     virtual ~EagerSearch() = default;
 
     virtual void print_statistics() const override;
@@ -55,7 +54,7 @@ public:
     void write_unsolvability_task_file(const std::vector<int> &varorder);
 };
 
-extern void add_options_to_parser(options::OptionParser &parser);
+extern void add_options_to_feature(plugins::Feature &feature);
 }
 
 #endif

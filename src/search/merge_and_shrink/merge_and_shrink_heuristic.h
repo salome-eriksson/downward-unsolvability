@@ -5,8 +5,6 @@
 #include "../evaluation_context.h"
 #include "../unsolvability/cudd_interface.h"
 
-#include "../utils/logging.h"
-
 #include <memory>
 
 namespace merge_and_shrink {
@@ -14,8 +12,6 @@ class FactoredTransitionSystem;
 class MergeAndShrinkRepresentation;
 
 class MergeAndShrinkHeuristic : public Heuristic {
-    utils::LogProxy log;
-
     // The final merge-and-shrink representations, storing goal distances.
     std::vector<std::unique_ptr<MergeAndShrinkRepresentation>> mas_representations;
 
@@ -42,7 +38,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 public:
-    explicit MergeAndShrinkHeuristic(const options::Options &opts);
+    explicit MergeAndShrinkHeuristic(const plugins::Options &opts);
 
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;

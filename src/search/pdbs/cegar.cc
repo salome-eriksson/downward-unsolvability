@@ -1,15 +1,16 @@
 #include "cegar.h"
 
+#include "pattern_database_factory.h"
 #include "types.h"
 #include "utils.h"
 
-#include "../option_parser.h"
 #include "../task_proxy.h"
 
+#include "../plugins/plugin.h"
 #include "../task_utils/task_properties.h"
-
 #include "../utils/countdown_timer.h"
 #include "../utils/logging.h"
+#include "../utils/math.h"
 #include "../utils/rng.h"
 
 #include <limits>
@@ -197,17 +198,19 @@ CEGAR::CEGAR(
 }
 
 void CEGAR::print_collection() const {
-    log << "[";
-    for (size_t i = 0; i < pattern_collection.size(); ++i) {
-        const unique_ptr<PatternInfo> &pattern_info = pattern_collection[i];
-        if (pattern_info) {
-            log << pattern_info->get_pattern();
-            if (i != pattern_collection.size() - 1) {
-                log << ", ";
+    if (log.is_at_least_verbose()) {
+        log << "[";
+        for (size_t i = 0; i < pattern_collection.size(); ++i) {
+            const unique_ptr<PatternInfo> &pattern_info = pattern_collection[i];
+            if (pattern_info) {
+                log << pattern_info->get_pattern();
+                if (i != pattern_collection.size() - 1) {
+                    log << ", ";
+                }
             }
         }
+        log << "]" << endl;
     }
-    log << "]" << endl;
 }
 
 bool CEGAR::time_limit_reached(
@@ -222,12 +225,9 @@ bool CEGAR::time_limit_reached(
 }
 
 unique_ptr<PatternInfo> CEGAR::compute_pattern_info(Pattern &&pattern) const {
-    bool dump = false;
     vector<int> op_cost;
-    bool compute_plan = true;
-    shared_ptr<PatternDatabase> pdb =
-        make_shared<PatternDatabase>(task_proxy, pattern, dump, op_cost, compute_plan, rng, use_wildcard_plans);
-    vector<vector<OperatorID>> plan = pdb->extract_wildcard_plan();
+    auto [pdb, plan] = compute_pdb_and_plan(
+        task_proxy, pattern, op_cost, rng, use_wildcard_plans);
 
     bool unsolvable = false;
     State initial_state = task_proxy.get_initial_state();
@@ -641,7 +641,7 @@ PatternCollectionInformation CEGAR::compute_pattern_collection() {
     }
 
     PatternCollectionInformation pattern_collection_information(
-        task_proxy, patterns);
+        task_proxy, patterns, log);
     pattern_collection_information.set_pdbs(pdbs);
 
     if (log.is_at_least_normal()) {
@@ -649,7 +649,8 @@ PatternCollectionInformation CEGAR::compute_pattern_collection() {
         dump_pattern_collection_generation_statistics(
             "CEGAR",
             timer.get_elapsed_time(),
-            pattern_collection_information);
+            pattern_collection_information,
+            log);
     }
 
     return pattern_collection_information;
@@ -708,13 +709,13 @@ PatternInformation generate_pattern_with_cegar(
     Pattern &pattern = new_patterns->front();
     shared_ptr<PDBCollection> new_pdbs = collection_info.get_pdbs();
     shared_ptr<PatternDatabase> &pdb = new_pdbs->front();
-    PatternInformation result(TaskProxy(*task), move(pattern));
+    PatternInformation result(TaskProxy(*task), move(pattern), log);
     result.set_pdb(pdb);
     return result;
 }
 
-void add_cegar_implementation_notes_to_parser(options::OptionParser &parser) {
-    parser.document_note(
+void add_cegar_implementation_notes_to_feature(plugins::Feature &feature) {
+    feature.document_note(
         "Short description of the CEGAR algorithm",
         "The CEGAR algorithm computes a pattern collection for a given planning "
         "task and a given (sub)set of its goals in a randomized order as "
@@ -729,7 +730,7 @@ void add_cegar_implementation_notes_to_parser(options::OptionParser &parser) {
         "computing regular or wildcard plans, where the latter are sequences of "
         "parallel operators inducing the same abstract transition.",
         true);
-    parser.document_note(
+    feature.document_note(
         "Implementation notes about the CEGAR algorithm",
         "The following describes differences of the implementation to "
         "the original implementation used and described in the paper.\n\n"
@@ -777,8 +778,8 @@ void add_cegar_implementation_notes_to_parser(options::OptionParser &parser) {
         true);
 }
 
-void add_cegar_wildcard_option_to_parser(options::OptionParser &parser) {
-    parser.add_option<bool>(
+void add_cegar_wildcard_option_to_feature(plugins::Feature &feature) {
+    feature.add_option<bool>(
         "use_wildcard_plans",
         "if true, compute wildcard plans which are sequences of sets of "
         "operators that induce the same transition; otherwise compute regular "

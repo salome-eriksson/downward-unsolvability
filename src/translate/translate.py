@@ -4,6 +4,9 @@
 import os
 import sys
 import traceback
+from typing import Dict, List, Optional, Tuple, Union
+
+VarValPair = Tuple[int, int]
 
 def python_version_supported():
     return sys.version_info >= (3, 6)
@@ -52,7 +55,12 @@ simplified_effect_condition_counter = 0
 added_implied_precondition_counter = 0
 
 
-def strips_to_sas_dictionary(groups, assert_partial):
+def strips_to_sas_dictionary(groups: List[List[pddl.Atom]],
+        assert_partial: bool) -> Tuple[
+            List[int], # domain size for each variable
+            Dict[pddl.Atom, List[VarValPair]]
+            # variable/value pairs representing each atom
+        ]:
     dictionary = {}
     for var_no, group in enumerate(groups):
         for val_no, atom in enumerate(group):
@@ -63,7 +71,10 @@ def strips_to_sas_dictionary(groups, assert_partial):
     return [len(group) + 1 for group in groups], dictionary
 
 
-def translate_strips_conditions_aux(conditions, dictionary, ranges):
+def translate_strips_conditions_aux(
+        conditions: List[pddl.Literal],
+        dictionary: Dict[pddl.Atom, List[VarValPair]],
+        ranges: List[int]) -> Optional[List[Dict[int, int]]]:
     condition = {}
     for fact in conditions:
         if fact.negated:
@@ -71,16 +82,7 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
             # can recognize when the negative condition is already
             # ensured by a positive condition
             continue
-        for var, val in dictionary.get(fact, ()):
-            # The default () here is a bit of a hack. For goals (but
-            # only for goals!), we can get static facts here. They
-            # cannot be statically false (that would have been
-            # detected earlier), and hence they are statically true
-            # and don't need to be translated.
-            # TODO: This would not be necessary if we dealt with goals
-            # in the same way we deal with operator preconditions etc.,
-            # where static facts disappear during grounding. So change
-            # this when the goal code is refactored (also below). (**)
+        for var, val in dictionary[fact]:
             if (condition.get(var) is not None and
                     val not in condition.get(var)):
                 # Conflicting conditions on this variable: Operator invalid.
@@ -102,15 +104,14 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
             ## and conditions like (not (occupied ?x)) do occur in
             ## preconditions.
             ## However, here we avoid introducing new derived predicates
-            ## by treat the negative precondition as a disjunctive
+            ## by treating the negative precondition as a disjunctive
             ## precondition and expanding it by "multiplying out" the
             ## possibilities.  This can lead to an exponential blow-up so
             ## it would be nice to choose the behaviour as an option.
             done = False
             new_condition = {}
             atom = pddl.Atom(fact.predicate, fact.args)  # force positive
-            for var, val in dictionary.get(atom, ()):
-                # see comment (**) above
+            for var, val in dictionary[atom]:
                 poss_vals = set(range(ranges[var]))
                 poss_vals.remove(val)
 
@@ -157,8 +158,12 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
     return multiply_out(condition)
 
 
-def translate_strips_conditions(conditions, dictionary, ranges,
-                                mutex_dict, mutex_ranges):
+def translate_strips_conditions(
+        conditions: List[pddl.Literal],
+        dictionary: Dict[pddl.Atom, List[VarValPair]],
+        ranges: List[int],
+        mutex_dict: Dict[pddl.Atom, List[VarValPair]],
+        mutex_ranges: List[int]) -> Optional[List[Dict[int, int]]]:
     if not conditions:
         return [{}]  # Quick exit for common case.
 
@@ -358,7 +363,6 @@ def prune_stupid_effect_conditions(var, val, conditions, effects_on_var):
     for condition in conditions:
         # Apply rule 1.
         while dual_fact in condition:
-            # print "*** Removing dual condition"
             simplified = True
             condition.remove(dual_fact)
         # Apply rule 2.
@@ -379,6 +383,10 @@ def translate_strips_axiom(axiom, dictionary, ranges, mutex_dict, mutex_ranges):
         effect = (var, ranges[var] - 1)
     else:
         [effect] = dictionary[axiom.effect]
+        # Here we exploit that due to the invariant analysis algorithm derived
+        # variables cannot have more than one representation in the dictionary,
+        # even with the full encoding. They can never be part of a non-trivial
+        # mutex group.
     axioms = []
     for condition in conditions:
         axioms.append(sas_tasks.SASAxiom(condition.items(), effect))
@@ -432,10 +440,26 @@ def dump_task(init, goals, actions, axioms, axiom_layer_dict):
     sys.stdout = old_stdout
 
 
-def translate_task(strips_to_sas, ranges, translation_key,
-                   mutex_dict, mutex_ranges, mutex_key,
-                   init, goals,
-                   actions, axioms, metric, implied_facts):
+def translate_task(
+        # var/value pairs representing each atom
+        strips_to_sas: Dict[pddl.Atom, List[VarValPair]],
+        # size of variable domains
+        ranges: List[int],
+        # string representation of each variable value
+        translation_key: List[List[str]],
+        # alternative var/value pairs representing each atom in full encoding
+        mutex_dict: Dict[pddl.Atom, List[VarValPair]],
+        # size of variable domains in full encoding
+        mutex_ranges: List[int],
+        # representation of all mutex groups in terms of encoding from
+        # strips_to_sas (or [] if not options.use_partial_encoding)
+        mutex_key: List[List[VarValPair]],
+        init: List[Union[pddl.Atom, pddl.Assign]],
+        goals: List[pddl.Literal],
+        actions: List[pddl.PropositionalAction],
+        axioms: List[pddl.PropositionalAxiom],
+        metric: bool,
+        implied_facts: Dict[VarValPair, List[VarValPair]]) -> sas_tasks.SASTask:
     with timers.timing("Processing axioms", block=True):
         axioms, axiom_layer_dict = axiom_rules.handle_axioms(actions, axioms, goals,
                                                              options.layer_strategy)
@@ -522,17 +546,14 @@ def unsolvable_sas_task(msg):
 
 def pddl_to_sas(task):
     with timers.timing("Instantiating", block=True):
-        (relaxed_reachable, atoms, actions, axioms,
+        (relaxed_reachable, atoms, actions, goal_list, axioms,
          reachable_action_params) = instantiate.explore(task)
 
     if not relaxed_reachable:
         return unsolvable_sas_task("No relaxed solution")
+    elif goal_list is None:
+        return unsolvable_sas_task("Trivially false goal")
 
-    # HACK! Goals should be treated differently.
-    if isinstance(task.goal, pddl.Conjunction):
-        goal_list = task.goal.parts
-    else:
-        goal_list = [task.goal]
     for item in goal_list:
         assert isinstance(item, pddl.Literal)
 
@@ -558,6 +579,8 @@ def pddl_to_sas(task):
     with timers.timing("Building mutex information", block=True):
         if options.use_partial_encoding:
             mutex_key = build_mutex_key(strips_to_sas, mutex_groups)
+            # mutex key represents the same information as mutex_groups but in
+            # FDR representation from strips_to_sas dictionary.
         else:
             # With our current representation, emitting complete mutex
             # information for the full encoding can incur an
@@ -602,12 +625,9 @@ def build_mutex_key(strips_to_sas, groups):
     for group in groups:
         group_key = []
         for fact in group:
-            represented_by = strips_to_sas.get(fact)
-            if represented_by:
-                assert len(represented_by) == 1
-                group_key.append(represented_by[0])
-            else:
-                print("not in strips_to_sas, left out:", fact)
+            represented_by = strips_to_sas[fact]
+            assert len(represented_by) == 1
+            group_key.append(represented_by[0])
         group_keys.append(group_key)
     return group_keys
 

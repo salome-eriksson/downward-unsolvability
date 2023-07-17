@@ -19,8 +19,7 @@ class CombiningEvaluator : public Evaluator {
 protected:
     virtual int combine_values(const std::vector<int> &values) = 0;
 public:
-    explicit CombiningEvaluator(
-        const std::vector<std::shared_ptr<Evaluator>> &subevaluators_);
+    explicit CombiningEvaluator(const plugins::Options &opts);
     virtual ~CombiningEvaluator() override;
 
     /*
@@ -48,6 +47,9 @@ public:
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
             EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
+
+extern void add_combining_evaluator_options_to_feature(
+    plugins::Feature &feature);
 }
 
 #endif

@@ -2,10 +2,9 @@
 
 #include "evaluation_context.h"
 #include "evaluator.h"
-#include "option_parser.h"
-#include "plugin.h"
 
 #include "algorithms/ordered_set.h"
+#include "plugins/plugin.h"
 #include "task_utils/successor_generator.h"
 #include "task_utils/task_properties.h"
 #include "tasks/root_task.h"
@@ -41,8 +40,9 @@ successor_generator::SuccessorGenerator &get_successor_generator(
     return successor_generator;
 }
 
-SearchEngine::SearchEngine(const Options &opts)
-    : status(IN_PROGRESS),
+SearchEngine::SearchEngine(const plugins::Options &opts)
+    : description(opts.get_unparsed_config()),
+      status(IN_PROGRESS),
       solution_found(false),
       task(tasks::g_root_task),
       task_proxy(*task),
@@ -50,7 +50,6 @@ SearchEngine::SearchEngine(const Options &opts)
       state_registry(task_proxy),
       successor_generator(get_successor_generator(task_proxy, log)),
       search_space(state_registry, log),
-      search_progress(log),
       statistics(log),
       cost_type(opts.get<OperatorCost>("cost_type")),
       is_unit_cost(task_properties::is_unit_cost(task_proxy)),
@@ -120,13 +119,13 @@ int SearchEngine::get_adjusted_cost(const OperatorProxy &op) const {
     return get_adjusted_action_cost(op, cost_type, is_unit_cost);
 }
 
-/* TODO: merge this into add_options_to_parser when all search
+/* TODO: merge this into add_options_to_feature when all search
          engines support pruning.
 
    Method doesn't belong here because it's only useful for certain derived classes.
    TODO: Figure out where it belongs and move it there. */
-void SearchEngine::add_pruning_option(OptionParser &parser) {
-    parser.add_option<shared_ptr<PruningMethod>>(
+void SearchEngine::add_pruning_option(plugins::Feature &feature) {
+    feature.add_option<shared_ptr<PruningMethod>>(
         "pruning",
         "Pruning methods can prune or reorder the set of applicable operators in "
         "each state and thereby influence the number and order of successor states "
@@ -134,13 +133,13 @@ void SearchEngine::add_pruning_option(OptionParser &parser) {
         "null()");
 }
 
-void SearchEngine::add_options_to_parser(OptionParser &parser) {
-    ::add_cost_type_option_to_parser(parser);
-    parser.add_option<int>(
+void SearchEngine::add_options_to_feature(plugins::Feature &feature) {
+    ::add_cost_type_option_to_feature(feature);
+    feature.add_option<int>(
         "bound",
         "exclusive depth bound on g-values. Cutoffs are always performed according to "
         "the real cost, regardless of the cost_type parameter", "infinity");
-    parser.add_option<double>(
+    feature.add_option<double>(
         "max_time",
         "maximum time in seconds the search is allowed to run for. The "
         "timeout is only checked after each complete search step "
@@ -149,64 +148,60 @@ void SearchEngine::add_options_to_parser(OptionParser &parser) {
         "experiments. Timed-out searches are treated as failed searches, "
         "just like incomplete search algorithms that exhaust their search space.",
         "infinity");
-    utils::add_log_options_to_parser(parser);
+    utils::add_log_options_to_feature(feature);
 }
 
 /* Method doesn't belong here because it's only useful for certain derived classes.
    TODO: Figure out where it belongs and move it there. */
-void SearchEngine::add_succ_order_options(OptionParser &parser) {
+void SearchEngine::add_succ_order_options(plugins::Feature &feature) {
     vector<string> options;
-    parser.add_option<bool>(
+    feature.add_option<bool>(
         "randomize_successors",
         "randomize the order in which successors are generated",
         "false");
-    parser.add_option<bool>(
+    feature.add_option<bool>(
         "preferred_successors_first",
         "consider preferred operators first",
         "false");
-    parser.document_note(
+    feature.document_note(
         "Successor ordering",
         "When using randomize_successors=true and "
         "preferred_successors_first=true, randomization happens before "
         "preferred operators are moved to the front.");
-    utils::add_rng_options(parser);
+    utils::add_rng_options(feature);
 }
 
-void SearchEngine::add_unsolvability_options(OptionParser &parser) {
-    vector<string> verification_types;
-    verification_types.push_back("NONE");
-    verification_types.push_back("CERTIFICATE");
-    verification_types.push_back("CERTIFICATE_FASTDUMP");
-    verification_types.push_back("CERTIFICATE_NOHINTS");
-    verification_types.push_back("PROOF");
-    verification_types.push_back("PROOF_DISCARD");
-    parser.add_enum_option<UnsolvabilityVerificationType>(
+void SearchEngine::add_unsolvability_options(plugins::Feature &feature) {
+    feature.add_option<UnsolvabilityVerificationType>(
                 "unsolv_verification",
-                verification_types,
                 "type of unsolvability verification",
-                "NONE");
-    parser.add_option<std::string>(
-        "unsolv_directory",
-        "The directory in which the unsolvability verification should be written."
-        "Defaults to current directory if none is set.",
-        ".");
+                "none");
+//    feature.add_option<string>(
+//        "unsolv_directory",
+//        "The directory in which the unsolvability verification should be written."
+//        "Defaults to current directory if none is set.",
+//        ".");
 }
 
 void print_initial_evaluator_values(
-    const EvaluationContext &eval_context, utils::LogProxy &log) {
+    const EvaluationContext &eval_context) {
     eval_context.get_cache().for_each_evaluator_result(
-        [&log] (const Evaluator *eval, const EvaluationResult &result) {
+        [] (const Evaluator *eval, const EvaluationResult &result) {
             if (eval->is_used_for_reporting_minima()) {
-                eval->report_value_for_initial_state(result, log);
+                eval->report_value_for_initial_state(result);
             }
         }
         );
 }
 
-static PluginTypePlugin<SearchEngine> _type_plugin(
-    "SearchEngine",
-    // TODO: Replace empty string by synopsis for the wiki page.
-    "");
+static class SearchEngineCategoryPlugin : public plugins::TypedCategoryPlugin<SearchEngine> {
+public:
+    SearchEngineCategoryPlugin() : TypedCategoryPlugin("SearchEngine") {
+        // TODO: Replace add synopsis for the wiki page.
+        // document_synopsis("...");
+    }
+}
+_category_plugin;
 
 void collect_preferred_operators(
     EvaluationContext &eval_context,
@@ -218,3 +213,12 @@ void collect_preferred_operators(
         }
     }
 }
+
+static plugins::TypedEnumPlugin<UnsolvabilityVerificationType> _enum_plugin({
+   {"none", ""},
+   {"certificate", ""},
+   {"certificate_fastdump", ""},
+   {"certificate_nohints", ""},
+   {"proof", ""},
+   {"proof_discard", ""}
+});

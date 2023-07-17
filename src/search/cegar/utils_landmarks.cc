@@ -1,11 +1,10 @@
 #include "utils_landmarks.h"
 
-#include "../option_parser.h"
-
+#include "../plugins/plugin.h"
 #include "../landmarks/landmark.h"
 #include "../landmarks/landmark_factory_h_m.h"
 #include "../landmarks/landmark_graph.h"
-
+#include "../utils/logging.h"
 #include "../utils/memory.h"
 
 #include <algorithm>
@@ -21,11 +20,12 @@ static FactPair get_fact(const Landmark &landmark) {
 }
 
 shared_ptr<LandmarkGraph> get_landmark_graph(const shared_ptr<AbstractTask> &task) {
-    Options hm_opts;
+    plugins::Options hm_opts;
     hm_opts.set<int>("m", 1);
     hm_opts.set<bool>("only_causal_landmarks", false);
     hm_opts.set<bool>("conjunctive_landmarks", false);
     hm_opts.set<bool>("use_orders", true);
+    hm_opts.set<utils::Verbosity>("verbosity", utils::Verbosity::SILENT);
     LandmarkFactoryHM lm_graph_factory(hm_opts);
 
     return lm_graph_factory.compute_lm_graph(task);

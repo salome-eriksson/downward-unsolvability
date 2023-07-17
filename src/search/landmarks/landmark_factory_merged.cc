@@ -3,10 +3,7 @@
 #include "landmark.h"
 #include "landmark_graph.h"
 
-#include "../option_parser.h"
-#include "../plugin.h"
-
-#include "../utils/logging.h"
+#include "../plugins/plugin.h"
 
 #include <set>
 
@@ -16,8 +13,9 @@ using utils::ExitCode;
 namespace landmarks {
 class LandmarkNode;
 
-LandmarkFactoryMerged::LandmarkFactoryMerged(const Options &opts)
-    : lm_factories(opts.get_list<shared_ptr<LandmarkFactory>>("lm_factories")) {
+LandmarkFactoryMerged::LandmarkFactoryMerged(const plugins::Options &opts)
+    : LandmarkFactory(opts),
+      lm_factories(opts.get_list<shared_ptr<LandmarkFactory>>("lm_factories")) {
 }
 
 LandmarkNode *LandmarkFactoryMerged::get_matching_landmark(const Landmark &landmark) const {
@@ -42,7 +40,9 @@ LandmarkNode *LandmarkFactoryMerged::get_matching_landmark(const Landmark &landm
 
 void LandmarkFactoryMerged::generate_landmarks(
     const shared_ptr<AbstractTask> &task) {
-    utils::g_log << "Merging " << lm_factories.size() << " landmark graphs" << endl;
+    if (log.is_at_least_normal()) {
+        log << "Merging " << lm_factories.size() << " landmark graphs" << endl;
+    }
 
     vector<shared_ptr<LandmarkGraph>> lm_graphs;
     lm_graphs.reserve(lm_factories.size());
@@ -52,7 +52,9 @@ void LandmarkFactoryMerged::generate_landmarks(
         achievers_calculated &= lm_factory->achievers_are_calculated();
     }
 
-    utils::g_log << "Adding simple landmarks" << endl;
+    if (log.is_at_least_normal()) {
+        log << "Adding simple landmarks" << endl;
+    }
     for (size_t i = 0; i < lm_graphs.size(); ++i) {
         const LandmarkGraph::Nodes &nodes = lm_graphs[i]->get_nodes();
         // TODO: loop over landmarks instead
@@ -70,7 +72,9 @@ void LandmarkFactoryMerged::generate_landmarks(
         }
     }
 
-    utils::g_log << "Adding disjunctive landmarks" << endl;
+    if (log.is_at_least_normal()) {
+        log << "Adding disjunctive landmarks" << endl;
+    }
     for (size_t i = 0; i < lm_graphs.size(); ++i) {
         const LandmarkGraph::Nodes &nodes = lm_graphs[i]->get_nodes();
         for (auto &lm_node : nodes) {
@@ -94,7 +98,9 @@ void LandmarkFactoryMerged::generate_landmarks(
         }
     }
 
-    utils::g_log << "Adding orderings" << endl;
+    if (log.is_at_least_normal()) {
+        log << "Adding orderings" << endl;
+    }
     for (size_t i = 0; i < lm_graphs.size(); ++i) {
         const LandmarkGraph::Nodes &nodes = lm_graphs[i]->get_nodes();
         for (auto &from_orig : nodes) {
@@ -107,11 +113,15 @@ void LandmarkFactoryMerged::generate_landmarks(
                     if (to_node) {
                         edge_add(*from, *to_node, e_type);
                     } else {
-                        utils::g_log << "Discarded to ordering" << endl;
+                        if (log.is_at_least_normal()) {
+                            log << "Discarded to ordering" << endl;
+                        }
                     }
                 }
             } else {
-                utils::g_log << "Discarded from ordering" << endl;
+                if (log.is_at_least_normal()) {
+                    log << "Discarded from ordering" << endl;
+                }
             }
         }
     }
@@ -141,31 +151,35 @@ bool LandmarkFactoryMerged::supports_conditional_effects() const {
     return true;
 }
 
-static shared_ptr<LandmarkFactory> _parse(OptionParser &parser) {
-    parser.document_synopsis(
-        "Merged Landmarks",
-        "Merges the landmarks and orderings from the parameter landmarks");
-    parser.document_note(
-        "Precedence",
-        "Fact landmarks take precedence over disjunctive landmarks, "
-        "orderings take precedence in the usual manner "
-        "(gn > nat > reas > o_reas). ");
-    parser.document_note(
-        "Note",
-        "Does not currently support conjunctive landmarks");
-    parser.add_list_option<shared_ptr<LandmarkFactory>>("lm_factories");
-    Options opts = parser.parse();
+class LandmarkFactoryMergedFeature : public plugins::TypedFeature<LandmarkFactory, LandmarkFactoryMerged> {
+public:
+    LandmarkFactoryMergedFeature() : TypedFeature("lm_merged") {
+        document_title("Merged Landmarks");
+        document_synopsis(
+            "Merges the landmarks and orderings from the parameter landmarks");
 
-    opts.verify_list_non_empty<shared_ptr<LandmarkFactory>>("lm_factories");
+        add_list_option<shared_ptr<LandmarkFactory>>("lm_factories");
+        add_landmark_factory_options_to_feature(*this);
 
-    parser.document_language_support("conditional_effects",
-                                     "supported if all components support them");
+        document_note(
+            "Precedence",
+            "Fact landmarks take precedence over disjunctive landmarks, "
+            "orderings take precedence in the usual manner "
+            "(gn > nat > reas > o_reas). ");
+        document_note(
+            "Note",
+            "Does not currently support conjunctive landmarks");
 
-    if (parser.dry_run())
-        return nullptr;
-    else
-        return make_shared<LandmarkFactoryMerged>(opts);
-}
+        document_language_support(
+            "conditional_effects",
+            "supported if all components support them");
+    }
 
-static Plugin<LandmarkFactory> _plugin("lm_merged", _parse);
+    virtual shared_ptr<LandmarkFactoryMerged> create_component(const plugins::Options &options, const utils::Context &context) const override {
+        plugins::verify_list_non_empty<shared_ptr<LandmarkFactory>>(context, options, "lm_factories");
+        return make_shared<LandmarkFactoryMerged>(options);
+    }
+};
+
+static plugins::FeaturePlugin<LandmarkFactoryMergedFeature> _plugin;
 }
