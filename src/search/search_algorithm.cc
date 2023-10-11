@@ -171,7 +171,7 @@ void SearchAlgorithm::add_succ_order_options(plugins::Feature &feature) {
     utils::add_rng_options(feature);
 }
 
-void SearchEngine::add_unsolvability_options(plugins::Feature &feature) {
+void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
     feature.add_option<UnsolvabilityVerificationType>(
                 "unsolv_verification",
                 "type of unsolvability verification",

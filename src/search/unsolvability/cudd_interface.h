@@ -19,7 +19,7 @@
   if the planner is compiled with USE_CUDD. Otherwise, they just print
   an error message and abort.
 */
-#ifdef USE_CUDD
+#ifdef USING_CUDD
 #include "cudd.h"
 #define CUDD_METHOD(X) X;
 #else
@@ -77,7 +77,7 @@ public:
 class CuddManager {
     friend class CuddBDD;
 private:
-#ifdef USE_CUDD
+#ifdef USING_CUDD
     static bool compact_proof;
     DdManager* ddmgr;
     std::vector<int> var_order;

@@ -12,6 +12,7 @@
 # Defining a new library:
 #    create_fast_downward_library(
 #        NAME <NAME>
+#        [ DISPLAY_NAME <DISPLAY_NAME> ]
 #        [ HELP <HELP> ]
 #        SOURCES
 #            <FILE_1> [ <FILE_2> ... ]
@@ -20,7 +21,9 @@
 #        [ CORE_LIBRARY ]
 #    )
 #
-# <HELP> is used to describe the cmake option, for example in ccmake.
+# <DISPLAY_NAME> defaults to lower case <NAME> and is used to group files
+#   in IDEs and for messages.
+# <HELP> defaults to <DISPLAY_NAME> and is used to describe the cmake option, for example in ccmake.
 # SOURCES lists the source files that are part of the library. Entries are
 #    listed without extension. For an entry <file>, both <file>.h and <file>.cc
 #    are added if the files exist.
@@ -437,6 +440,8 @@ create_fast_downward_library(
         null_pruning_method
         ordered_set
         successor_generator
+        cudd_interface
+        unsolvabilitymanager
     DEPENDENCY_ONLY
 )
 
@@ -570,12 +575,36 @@ if(USE_LP)
     endif()
 endif()
 
-if(PLUGIN_CUDD_INTERFACE_ENABLED)
+create_fast_downward_library(
+        NAME cudd_interface
+        HELP "Interface to the CUDD BDD library"
+        SOURCES
+            unsolvability/cudd_interface
+        DEPENDS
+            unsolvabilitymanager
+        DEPENDENCY_ONLY
+)
+
+if(USE_CUDD)
     find_package(CUDD)
-    add_definitions("-D USE_CUDD")
-    include_directories(${CUDD_INCLUDE_DIRS})
-    target_link_libraries(downward ${CUDD_LIBRARIES})
+    if (CUDD_FOUND)
+        add_definitions("-D USING_CUDD")
+        include_directories(${CUDD_INCLUDE_DIRS})
+        target_link_libraries(cudd_interface INTERFACE ${CUDD_LIBRARIES})
+    else ()
+        message(FATAL_ERROR "CUDD library not found. Check your CUDD configuration.")
+    endif ()
+else ()
+    message(STATUS "CUDD not enabled.") # DEBUG
 endif()
+
+create_fast_downward_library(
+        NAME unsolvabilitymanager
+        HELP "Unsolvability manager"
+        SOURCES
+            unsolvability/unsolvabilitymanager
+        DEPENDENCY_ONLY
+)
 
 
 create_fast_downward_library(
@@ -584,6 +613,8 @@ create_fast_downward_library(
     SOURCES
         heuristics/array_pool
         heuristics/relaxation_heuristic
+    DEPENDS
+        cudd_interface
     DEPENDENCY_ONLY
 )
 
@@ -661,6 +692,7 @@ create_fast_downward_library(
         heuristics/hm_heuristic
     DEPENDS
         task_properties
+        unsolvabilitymanager
 )
 
 create_fast_downward_library(
@@ -829,6 +861,7 @@ create_fast_downward_library(
         sccs
         task_properties
         variable_order_finder
+        cudd_interface
 )
 
 create_fast_downward_library(

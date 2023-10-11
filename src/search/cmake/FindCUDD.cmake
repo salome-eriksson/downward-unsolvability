@@ -14,12 +14,22 @@
 # Note that the standard FIND_PACKAGE features are supported
 # (QUIET, REQUIRED, etc.).
 
+set(IMPORTED_CONFIGURATIONS "Debug" "Release")
+set(HINT_PATHS ${cudd_DIR} $ENV{CUDD_DIR})
+
+
+add_library(cudd::cudd IMPORTED SHARED)
+set_target_properties(cudd::cudd PROPERTIES
+        IMPORTED_CONFIGURATIONS "${IMPORTED_CONFIGURATIONS}"
+)
+
 find_path(CUDD_INCLUDE_DIRS
     NAMES cudd.h
     HINTS $ENV{DOWNWARD_CUDD_ROOT}
     PATH_SUFFIXES include
     NO_DEFAULT_PATH
 )
+target_include_directories(cudd::cudd INTERFACE ${CUDD_INCLUDE_DIRS})
 
 find_library(CUDD_LIBRARY
     NAMES cudd
