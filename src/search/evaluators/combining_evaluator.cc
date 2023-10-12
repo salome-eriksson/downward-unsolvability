@@ -62,8 +62,8 @@ void CombiningEvaluator::store_deadend_info(EvaluationContext &eval_context) {
     }
 }
 
-std::pair<SetExpression,Judgment> CombiningEvaluator::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+std::pair<SetExpression, Judgment> CombiningEvaluator::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
             return subevaluator->get_dead_end_justification(eval_context, unsolvmanager);

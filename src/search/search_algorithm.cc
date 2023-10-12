@@ -173,9 +173,9 @@ void SearchAlgorithm::add_succ_order_options(plugins::Feature &feature) {
 
 void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
     feature.add_option<UnsolvabilityVerificationType>(
-                "unsolv_verification",
-                "type of unsolvability verification",
-                "none");
+        "unsolv_verification",
+        "type of unsolvability verification",
+        "none");
 //    feature.add_option<string>(
 //        "unsolv_directory",
 //        "The directory in which the unsolvability verification should be written."
@@ -215,7 +215,7 @@ void collect_preferred_operators(
 }
 
 static plugins::TypedEnumPlugin<UnsolvabilityVerificationType> _enum_plugin({
-   {"none", ""},
-   {"proof", ""},
-   {"proof_discard", ""}
+    {"none", ""},
+    {"proof", ""},
+    {"proof_discard", ""}
 });

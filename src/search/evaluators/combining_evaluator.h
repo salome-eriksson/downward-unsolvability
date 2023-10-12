@@ -43,8 +43,8 @@ public:
         std::set<Evaluator *> &evals) override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 
 extern void add_combining_evaluator_options_to_feature(

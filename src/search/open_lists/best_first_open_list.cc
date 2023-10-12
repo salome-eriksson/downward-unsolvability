@@ -41,8 +41,8 @@ public:
         EvaluationContext &eval_context) const override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 
 
@@ -121,8 +121,8 @@ void BestFirstOpenList<Entry>::store_deadend_info(EvaluationContext &eval_contex
 }
 
 template<class Entry>
-std::pair<SetExpression,Judgment> BestFirstOpenList<Entry>::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+std::pair<SetExpression, Judgment> BestFirstOpenList<Entry>::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
         return evaluator->get_dead_end_justification(eval_context, unsolvmanager);
     }

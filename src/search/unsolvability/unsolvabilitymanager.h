@@ -23,7 +23,6 @@ public:
      */
     Judgment()
         : id(-1) {
-
     }
     ~Judgment() {
     }
@@ -35,7 +34,6 @@ class SetExpression {
 
     SetExpression(int id)
         : id(id) {
-
     }
 public:
     /*
@@ -44,14 +42,12 @@ public:
      */
     SetExpression()
         : id(-1) {
-
     }
     ~SetExpression() {
     }
 };
 
-class UnsolvabilityManager
-{
+class UnsolvabilityManager {
 private:
     std::shared_ptr<AbstractTask> task;
     TaskProxy task_proxy;
@@ -111,17 +107,17 @@ public:
     // TODO: in the thesis, the judgments for SD are the other way around
     Judgment apply_rule_sd(SetExpression set, Judgment &s_subset_sp, Judgment &sp_dead);
     Judgment apply_rule_pg(SetExpression set, Judgment &progression_subset,
-                                 Judgment &sp_dead,
-                                 Judgment &goal_intersection_dead);
+                           Judgment &sp_dead,
+                           Judgment &goal_intersection_dead);
     Judgment apply_rule_pi(SetExpression set, Judgment &progression_subset,
-                                 Judgment &sp_dead,
-                                 Judgment &init_subset);
+                           Judgment &sp_dead,
+                           Judgment &init_subset);
     Judgment apply_rule_rg(SetExpression set, Judgment &regression_subset,
-                                 Judgment &sp_dead,
-                                 Judgment &goal_intersection_dead);
+                           Judgment &sp_dead,
+                           Judgment &goal_intersection_dead);
     Judgment apply_rule_ri(SetExpression set, Judgment &regression_subset,
-                                 Judgment &sp_dead,
-                                 Judgment &init_subset);
+                           Judgment &sp_dead,
+                           Judgment &init_subset);
 
     Judgment apply_rule_ci(Judgment &init_dead);
     Judgment apply_rule_cg(Judgment &goal_dead);
@@ -132,32 +128,31 @@ public:
     Judgment apply_rule_il(SetExpression left_set, SetExpression right_set);
     Judgment apply_rule_di(SetExpression left_set, SetExpression right_set);
     Judgment apply_rule_su(SetExpression left_set, SetExpression right_set,
-                                 Judgment &e_subset_epp,
-                                 Judgment &ep_subset_epp);
+                           Judgment &e_subset_epp,
+                           Judgment &ep_subset_epp);
     Judgment apply_rule_si(SetExpression left_set, SetExpression right_set,
-                                 Judgment &e_subset_ep,
-                                 Judgment &e_subset_epp);
+                           Judgment &e_subset_ep,
+                           Judgment &e_subset_epp);
     Judgment apply_rule_st(SetExpression left_set, SetExpression right_set,
-                                 Judgment &e_subset_ep,
-                                 Judgment &ep_subset_epp);
+                           Judgment &e_subset_ep,
+                           Judgment &ep_subset_epp);
 
     Judgment apply_rule_at(SetExpression left_set, SetExpression right_set,
-                                 Judgment &prog_subset,
-                                 Judgment &a_subset);
+                           Judgment &prog_subset,
+                           Judgment &a_subset);
     Judgment apply_rule_au(SetExpression left_set, SetExpression right_set,
-                                 Judgment &a_prog_subset,
-                                 Judgment &ap_prog_subset);
+                           Judgment &a_prog_subset,
+                           Judgment &ap_prog_subset);
     Judgment apply_rule_pt(SetExpression left_set, SetExpression right_set,
-                                 Judgment &prog_subset,
-                                 Judgment &sp_subset_s);
+                           Judgment &prog_subset,
+                           Judgment &sp_subset_s);
     Judgment apply_rule_pu(SetExpression left_set, SetExpression right_set,
-                                 Judgment &s_prog_subset,
-                                 Judgment &sp_prog_subset);
+                           Judgment &s_prog_subset,
+                           Judgment &sp_prog_subset);
     Judgment apply_rule_pr(SetExpression left_set, SetExpression right_set,
-                                 Judgment &progression);
+                           Judgment &progression);
     Judgment apply_rule_rp(SetExpression left_set, SetExpression right_set,
-                                 Judgment &regression);
-
+                           Judgment &regression);
 };
 
 #endif // UNSOLVABILITYMANAGER_H

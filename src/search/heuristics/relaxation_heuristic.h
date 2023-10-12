@@ -70,8 +70,8 @@ protected:
     bool unsolv_subsumption_check;
     CuddManager *cudd_manager;
     std::vector<CuddBDD> bdds;
-    std::unordered_map<int,int> state_to_bddindex;
-    std::unordered_map<int, std::pair<SetExpression,Judgment>> knowledge_for_bdd;
+    std::unordered_map<int, int> state_to_bddindex;
+    std::unordered_map<int, std::pair<SetExpression, Judgment>> knowledge_for_bdd;
     bool unsolvability_setup;
     std::vector<int> bdd_to_stateid;
 
@@ -124,7 +124,7 @@ protected:
       bool bdd_already_seen: whether the bdd was built before the function call already
       int bddindex: the index of the requested bdd in bdds vector
      */
-    std::pair<bool,int> get_bdd_for_state(const State &state);
+    std::pair<bool, int> get_bdd_for_state(const State &state);
 public:
     explicit RelaxationHeuristic(const plugins::Options &options);
 
@@ -132,8 +132,8 @@ public:
 
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }
 

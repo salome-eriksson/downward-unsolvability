@@ -270,20 +270,20 @@ void HMHeuristic::setup_unsolvability_proof() {
     int varamount = task_proxy.get_variables().size();
     fact_to_variable.resize(varamount);
     strips_varamount = 0;
-    for(int i = 0; i < varamount; ++i) {
+    for (int i = 0; i < varamount; ++i) {
         int domsize = task_proxy.get_variables()[i].get_domain_size();
         fact_to_variable[i].resize(domsize);
-        for(int j = 0; j < domsize; ++j) {
+        for (int j = 0; j < domsize; ++j) {
             // we want the variables to start with 1 since that is how the DIMACS format works
             fact_to_variable[i][j] = ++strips_varamount;
         }
     }
 
     // store all mutex information in clause form
-    for(int i = 0; i < varamount; ++i) {
+    for (int i = 0; i < varamount; ++i) {
         int domsize = task_proxy.get_variables()[i].get_domain_size();
-        for(int j = 0; j < domsize-1; ++j) {
-            for(int k = j+1; k < domsize; ++k) {
+        for (int j = 0; j < domsize - 1; ++j) {
+            for (int k = j + 1; k < domsize; ++k) {
                 mutexes.push_back({-fact_to_variable[i][j], -fact_to_variable[i][k]});
             }
         }
@@ -292,12 +292,12 @@ void HMHeuristic::setup_unsolvability_proof() {
 }
 
 void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
-    if(!unsolvability_setup) {
+    if (!unsolvability_setup) {
         setup_unsolvability_proof();
     }
 
     std::forward_list<const Tuple *> tuples;
-    for(auto &elem : hm_table) {
+    for (auto &elem : hm_table) {
         if (elem.second == numeric_limits<int>::max()) {
             tuples.push_front(&(elem.first));
         }
@@ -305,15 +305,14 @@ void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     unreachable_tuples.insert({eval_context.get_state().get_id().get_value(), std::move(tuples)});
 }
 
-std::pair<SetExpression,Judgment> HMHeuristic::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
-
+std::pair<SetExpression, Judgment> HMHeuristic::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     std::vector<std::vector<int>> clauses = mutexes;
     clauses.reserve(mutexes.size() + unreachable_tuples.size());
-    for(const Tuple * tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
+    for (const Tuple *tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
         std::vector<int> clause;
         clause.reserve(tuple->size());
-        for(size_t i = 0; i < tuple->size(); ++i) {
+        for (size_t i = 0; i < tuple->size(); ++i) {
             const FactPair &fact = tuple->at(i);
             clause.push_back(-fact_to_variable[fact.var][fact.value]);
         }

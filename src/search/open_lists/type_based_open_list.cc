@@ -45,8 +45,8 @@ public:
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 
 template<class Entry>
@@ -140,8 +140,8 @@ void TypeBasedOpenList<Entry>::store_deadend_info(EvaluationContext &eval_contex
 }
 
 template<class Entry>
-std::pair<SetExpression,Judgment> TypeBasedOpenList<Entry>::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+std::pair<SetExpression, Judgment> TypeBasedOpenList<Entry>::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &evaluator : evaluators) {
         if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
             return evaluator->get_dead_end_justification(eval_context, unsolvmanager);
