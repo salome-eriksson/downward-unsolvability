@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <sstream>
 
-#ifdef USING_CUDD
+#ifdef HAS_CUDD
 #include "dddmp.h"
 
 using utils::ExitCode;

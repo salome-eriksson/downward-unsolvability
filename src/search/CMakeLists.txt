@@ -588,7 +588,7 @@ create_fast_downward_library(
 if(USE_CUDD)
     find_package(CUDD)
     if (CUDD_FOUND)
-        add_definitions("-D USING_CUDD")
+        add_definitions("-D HAS_CUDD")
         include_directories(${CUDD_INCLUDE_DIRS})
         target_link_libraries(cudd_interface INTERFACE ${CUDD_LIBRARIES})
     else ()
