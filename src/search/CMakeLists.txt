@@ -12,7 +12,6 @@
 # Defining a new library:
 #    create_fast_downward_library(
 #        NAME <NAME>
-#        [ DISPLAY_NAME <DISPLAY_NAME> ]
 #        [ HELP <HELP> ]
 #        SOURCES
 #            <FILE_1> [ <FILE_2> ... ]
@@ -21,9 +20,7 @@
 #        [ CORE_LIBRARY ]
 #    )
 #
-# <DISPLAY_NAME> defaults to lower case <NAME> and is used to group files
-#   in IDEs and for messages.
-# <HELP> defaults to <DISPLAY_NAME> and is used to describe the cmake option, for example in ccmake.
+# <HELP> is used to describe the cmake option, for example in ccmake.
 # SOURCES lists the source files that are part of the library. Entries are
 #    listed without extension. For an entry <file>, both <file>.h and <file>.cc
 #    are added if the files exist.
@@ -54,8 +51,8 @@ if (WIN32)
     copy_dlls_to_binary_dir_after_build(downward)
 endif()
 
-
-## == Project ==
+# In the following, we include all source files, grouped into libraries with
+# dependencies among each other.
 
 create_fast_downward_library(
     NAME core_sources

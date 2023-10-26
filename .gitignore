@@ -4,8 +4,6 @@ __pycache__/
 /sas_plan.*
 /task.txt
 /*.bdd
-/cert*.txt
-/hints.txt
 /proof.txt
 /builds/
 /misc/.tox/

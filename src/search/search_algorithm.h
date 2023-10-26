@@ -1,5 +1,5 @@
-#ifndef SEARCH_ENGINE_H
-#define SEARCH_ENGINE_H
+#ifndef SEARCH_ALGORITHM_H
+#define SEARCH_ALGORITHM_H
 
 #include "operator_cost.h"
 #include "operator_id.h"
