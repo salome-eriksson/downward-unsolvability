@@ -20,7 +20,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
     void extract_nontrivial_factors(FactoredTransitionSystem &fts);
     void extract_factors(FactoredTransitionSystem &fts);
 
-    CuddManager* cudd_manager;
+    CuddManager *cudd_manager;
     std::vector<int> variable_order;
     // TODO: does this have to be a raw pointer?
     CuddBDD *bdd;
@@ -36,8 +36,8 @@ public:
 
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }
 

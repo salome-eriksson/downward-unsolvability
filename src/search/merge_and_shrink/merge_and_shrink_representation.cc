@@ -82,26 +82,25 @@ void MergeAndShrinkRepresentationLeaf::dump(utils::LogProxy &log) const {
 }
 
 void MergeAndShrinkRepresentationLeaf::get_bdds(
-        CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) {
+    CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) {
+    CuddBDD mutexbdd = CuddBDD(manager, false);
 
-    CuddBDD mutexbdd = CuddBDD(manager,false);
-
-    std::vector<std::pair<int,int>> pos;
-    std::vector<std::pair<int,int>> neg;
-    for(size_t i = 1; i < lookup_table.size(); ++i) {
+    std::vector<std::pair<int, int>> pos;
+    std::vector<std::pair<int, int>> neg;
+    for (size_t i = 1; i < lookup_table.size(); ++i) {
         neg.push_back(std::make_pair(var_id, i));
     }
     pos.push_back(std::make_pair(var_id, 0));
 
     CuddBDD varbdd = CuddBDD(manager, pos, neg);
-    bdd_for_val.insert({lookup_table[0],varbdd});
+    bdd_for_val.insert({lookup_table[0], varbdd});
     mutexbdd.lor(varbdd);
-    for(size_t i = 1; i < lookup_table.size(); ++i) {
-        neg[i-1].second = i-1;
+    for (size_t i = 1; i < lookup_table.size(); ++i) {
+        neg[i - 1].second = i - 1;
         pos[0].second = i;
         varbdd = CuddBDD(manager, pos, neg);
-        if(bdd_for_val.find(lookup_table[i]) == bdd_for_val.end()) {
-            bdd_for_val.insert({lookup_table[i],varbdd});
+        if (bdd_for_val.find(lookup_table[i]) == bdd_for_val.end()) {
+            bdd_for_val.insert({lookup_table[i], varbdd});
         } else {
             bdd_for_val[lookup_table[i]].lor(varbdd);
         }
@@ -111,13 +110,12 @@ void MergeAndShrinkRepresentationLeaf::get_bdds(
 }
 
 CuddBDD *MergeAndShrinkRepresentationLeaf::get_deadend_bdd(
-            CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) {
+    CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) {
+    CuddBDD *b_inf = new CuddBDD(manager, false);
 
-    CuddBDD* b_inf = new CuddBDD(manager, false);
-
-    std::vector<std::pair<int,int>> pos;
-    std::vector<std::pair<int,int>> neg;
-    for(size_t i = 1; i < lookup_table.size(); ++i) {
+    std::vector<std::pair<int, int>> pos;
+    std::vector<std::pair<int, int>> neg;
+    for (size_t i = 1; i < lookup_table.size(); ++i) {
         neg.push_back(std::make_pair(var_id, i));
     }
     pos.push_back(std::make_pair(var_id, 0));
@@ -127,11 +125,11 @@ CuddBDD *MergeAndShrinkRepresentationLeaf::get_deadend_bdd(
     varbdd.land(bdd_for_val[val]);
     b_inf->lor(varbdd);
 
-    for(size_t i = 1; i < lookup_table.size(); ++i) {
+    for (size_t i = 1; i < lookup_table.size(); ++i) {
         val = lookup_table[i];
-        neg[i-1].second = i-1;
+        neg[i - 1].second = i - 1;
         pos[0].second = i;
-        if(first && val >= 0) {
+        if (first && val >= 0) {
             val = 0;
         }
         varbdd = CuddBDD(manager, pos, neg);
@@ -226,15 +224,15 @@ void MergeAndShrinkRepresentationMerge::dump(utils::LogProxy &log) const {
 }
 
 void MergeAndShrinkRepresentationMerge::get_bdds(
-        CuddManager *, std::unordered_map<int, CuddBDD> &) {
+    CuddManager *, std::unordered_map<int, CuddBDD> &) {
     // TODO: clearer error message
     std::cerr << "Non-linear merge strategy";
     exit(1);
 }
 
 
-CuddBDD* MergeAndShrinkRepresentationMerge::get_deadend_bdd(
-         CuddManager * manager, std::unordered_map<int,CuddBDD> &bdd_for_val, bool first) {
+CuddBDD *MergeAndShrinkRepresentationMerge::get_deadend_bdd(
+    CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) {
     size_t rows = lookup_table.size();
     size_t columns = lookup_table[0].size();
 
@@ -246,18 +244,18 @@ CuddBDD* MergeAndShrinkRepresentationMerge::get_deadend_bdd(
 
 
     int val;
-    for(size_t i = 0; i < rows; ++i) {
+    for (size_t i = 0; i < rows; ++i) {
         CuddBDD b_i = CuddBDD(manager, false);
-        for(size_t j = 0; j < columns; ++j) {
+        for (size_t j = 0; j < columns; ++j) {
             val = lookup_table[i][j];
-            if(first && val >= 0) {
+            if (first && val >= 0) {
                 val = 0;
             }
             CuddBDD right_child = right_child_bdds[j];
             right_child.land(bdd_for_val[val]);
             b_i.lor(right_child);
         }
-        if(right_child_bdds.find(-1) != right_child_bdds.end()) {
+        if (right_child_bdds.find(-1) != right_child_bdds.end()) {
             CuddBDD right_child = right_child_bdds[-1];
             right_child.land(bdd_for_val[-1]);
             b_i.lor(right_child);

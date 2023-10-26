@@ -40,8 +40,8 @@ public:
         EvaluationContext &eval_context) const override;
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 
 
@@ -133,17 +133,17 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
 template<class Entry>
 void AlternationOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
     for (const auto &sublist : open_lists) {
-        if(sublist->is_dead_end(eval_context)) {
+        if (sublist->is_dead_end(eval_context)) {
             return sublist->store_deadend_info(eval_context);
         }
     }
 }
 
 template<class Entry>
-std::pair<SetExpression,Judgment> AlternationOpenList<Entry>::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+std::pair<SetExpression, Judgment> AlternationOpenList<Entry>::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const auto &sublist : open_lists) {
-        if(sublist->is_dead_end(eval_context)) {
+        if (sublist->is_dead_end(eval_context)) {
             return sublist->get_dead_end_justification(eval_context, unsolvmanager);
         }
     }

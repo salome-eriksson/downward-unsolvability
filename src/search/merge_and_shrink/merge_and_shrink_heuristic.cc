@@ -22,7 +22,7 @@ using utils::ExitCode;
 
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const plugins::Options &opts)
-    : Heuristic(opts)  {
+    : Heuristic(opts) {
     log << "Initializing merge-and-shrink heuristic..." << endl;
     MergeAndShrinkAlgorithm algorithm(opts);
     FactoredTransitionSystem fts = algorithm.build_factored_transition_system(task_proxy);
@@ -116,8 +116,8 @@ void MergeAndShrinkHeuristic::extract_factors(FactoredTransitionSystem &fts) {
 
     // fill variable order to contain all variables
     // TODO: can we do this nicer?
-    for(int i = 0; i < amount_vars; ++i) {
-        if(find(variable_order.begin(), variable_order.end(), i) == variable_order.end()) {
+    for (int i = 0; i < amount_vars; ++i) {
+        if (find(variable_order.begin(), variable_order.end(), i) == variable_order.end()) {
             variable_order.push_back(i);
         }
     }
@@ -150,9 +150,9 @@ void MergeAndShrinkHeuristic::get_bdd() {
 
 
 
-std::pair<SetExpression,Judgment> MergeAndShrinkHeuristic::get_dead_end_justification(
-        EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
-    if(!deadends_shown_dead) {
+std::pair<SetExpression, Judgment> MergeAndShrinkHeuristic::get_dead_end_justification(
+    EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
+    if (!deadends_shown_dead) {
         get_bdd();
         SetExpression set = unsolvmanager.define_bdd(*bdd);
         SetExpression progression = unsolvmanager.define_set_progression(set, 0);

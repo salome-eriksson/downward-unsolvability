@@ -103,9 +103,9 @@ class HSPMaxHeuristicFeature : public plugins::TypedFeature<Evaluator, HSPMaxHeu
 public:
     HSPMaxHeuristicFeature() : TypedFeature("hmax") {
         document_title("Max heuristic");
-    	add_option<bool>("unsolv_subsumption",
-                            "check if a dead-end is covered by a previous one",
-                            "false");
+        add_option<bool>("unsolv_subsumption",
+                         "check if a dead-end is covered by a previous one",
+                         "false");
 
         Heuristic::add_options_to_feature(*this);
 

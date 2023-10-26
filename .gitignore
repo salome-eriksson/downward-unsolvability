@@ -4,11 +4,7 @@ __pycache__/
 /sas_plan.*
 /task.txt
 /*.bdd
-/cert*.txt
-/hints.txt
 /proof.txt
 /builds/
-/experiments/issue*/.venv/
-/experiments/issue*/data/
 /misc/.tox/
 /misc/autodoc/downward-xmlrpc.secret
