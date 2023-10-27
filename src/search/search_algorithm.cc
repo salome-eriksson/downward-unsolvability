@@ -176,11 +176,11 @@ void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
         "unsolv_verification",
         "type of unsolvability verification",
         "none");
-//    feature.add_option<string>(
-//        "unsolv_directory",
-//        "The directory in which the unsolvability verification should be written."
-//        "Defaults to current directory if none is set.",
-//        ".");
+    feature.add_option<bool>(
+        "proof_to_tmp",
+        "If set to true, the proof will be written into the $TMP directory "
+        "(otherwise the current directory is used).",
+        "false");
 }
 
 void print_initial_evaluator_values(

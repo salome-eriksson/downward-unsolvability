@@ -31,8 +31,7 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
-//      unsolvability_directory(opts.get<std::string>("unsolv_directory")) {
-      unsolvability_directory(".") {
+      unsolvability_directory(opts.get<bool>("proof_to_tmp") ? "$TMP" : ".") {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -51,10 +50,6 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
                 envvar = unsolvability_directory.substr(found + 1);
             } else {
                 envvar = unsolvability_directory.substr(found + 1, end - found - 1);
-            }
-            // to upper case
-            for (size_t i = 0; i < envvar.size(); i++) {
-                envvar.at(i) = toupper(envvar.at(i));
             }
             std::string expanded = std::getenv(envvar.c_str());
             unsolvability_directory.replace(found, envvar.length() + 1, expanded);
