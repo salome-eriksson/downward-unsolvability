@@ -24,47 +24,39 @@ namespace eager_search {
 EagerSearch::EagerSearch(const plugins::Options &opts)
     : SearchAlgorithm(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
-      unsolv_type(opts.get<UnsolvabilityVerificationType>("unsolv_verification")),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_state_open_list()),
       f_evaluator(opts.get<shared_ptr<Evaluator>>("f_eval", nullptr)),
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
-      unsolvability_directory(opts.get<bool>("proof_to_tmp") ? "$TMP" : ".") {
+      create_unsolvability_proof(opts.get<bool>("create_unsolvability_proof")),
+      proof_directory(opts.get<bool>("proof_to_tmp") ? "$TMP" : "") {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
 
-    if (unsolv_type != UnsolvabilityVerificationType::NONE) {
-        if (unsolvability_directory.compare(".") == 0) {
-            unsolvability_directory = "";
-        }
+    if (create_unsolvability_proof) {
         // expand environment variables
-        size_t found = unsolvability_directory.find('$');
+        size_t found = proof_directory.find('$');
         while (found != std::string::npos) {
-            size_t end = unsolvability_directory.find('/');
+            size_t end = proof_directory.find('/');
             std::string envvar;
             if (end == std::string::npos) {
-                envvar = unsolvability_directory.substr(found + 1);
+                envvar = proof_directory.substr(found + 1);
             } else {
-                envvar = unsolvability_directory.substr(found + 1, end - found - 1);
+                envvar = proof_directory.substr(found + 1, end - found - 1);
             }
             std::string expanded = std::getenv(envvar.c_str());
-            unsolvability_directory.replace(found, envvar.length() + 1, expanded);
-            found = unsolvability_directory.find('$');
+            proof_directory.replace(found, envvar.length() + 1, expanded);
+            found = proof_directory.find('$');
         }
-        if (!unsolvability_directory.empty() && !(unsolvability_directory.back() == '/')) {
-            unsolvability_directory += "/";
+        if (!proof_directory.empty() && proof_directory.back() != '/') {
+            proof_directory += "/";
         }
         std::cout << "Generating unsolvability verification in "
-                  << unsolvability_directory << std::endl;
-        if (unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
-            CuddManager::set_compact_proof(false);
-        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
-            CuddManager::set_compact_proof(true);
-        }
+                  << proof_directory << std::endl;
     }
 }
 
@@ -119,8 +111,7 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
-        if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
-            unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+        if (create_unsolvability_proof) {
             open_list->store_deadend_info(eval_context);
         }
         log << "Initial state is a dead end." << endl;
@@ -149,8 +140,7 @@ SearchStatus EagerSearch::step() {
     optional<SearchNode> node;
     while (true) {
         if (open_list->empty()) {
-            if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
-                unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+            if (create_unsolvability_proof) {
                 write_unsolvability_proof();
             }
             log << "Completely explored state space -- no solution!" << endl;
@@ -264,8 +254,7 @@ SearchStatus EagerSearch::step() {
             statistics.inc_evaluated_states();
 
             if (open_list->is_dead_end(succ_eval_context)) {
-                if (unsolv_type == UnsolvabilityVerificationType::PROOF ||
-                    unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
+                if (create_unsolvability_proof) {
                     open_list->store_deadend_info(succ_eval_context);
                 }
                 succ_node.mark_as_dead_end();
@@ -361,7 +350,7 @@ void add_options_to_feature(plugins::Feature &feature) {
 
 void EagerSearch::write_unsolvability_proof() {
     double writing_start = utils::g_timer();
-    UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
+    UnsolvabilityManager unsolvmgr(proof_directory, task);
     std::vector<int> varorder(task_proxy.get_variables().size());
     for (size_t i = 0; i < varorder.size(); ++i) {
         varorder[i] = i;
@@ -565,7 +554,7 @@ void EagerSearch::write_unsolvability_task_file(const std::vector<int> &varorder
     }
 
     std::ofstream task_file;
-    task_file.open(unsolvability_directory + "task.txt");
+    task_file.open(proof_directory + "task.txt");
 
     task_file << "begin_atoms:" << fact_amount << "\n";
     for (size_t i = 0; i < varorder.size(); ++i) {

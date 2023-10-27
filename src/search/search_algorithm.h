@@ -30,12 +30,6 @@ class SuccessorGenerator;
 
 enum SearchStatus {IN_PROGRESS, TIMEOUT, FAILED, SOLVED};
 
-enum class UnsolvabilityVerificationType {
-    NONE,
-    PROOF,
-    PROOF_DISCARD
-};
-
 class SearchAlgorithm {
     std::string description;
     SearchStatus status;

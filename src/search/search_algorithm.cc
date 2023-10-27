@@ -172,13 +172,13 @@ void SearchAlgorithm::add_succ_order_options(plugins::Feature &feature) {
 }
 
 void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
-    feature.add_option<UnsolvabilityVerificationType>(
-        "unsolv_verification",
-        "type of unsolvability verification",
-        "none");
+    feature.add_option<bool>(
+        "create_unsolvability_proof",
+        "Write a proof of unsolvability in case of an unsolvable problem.",
+        "false");
     feature.add_option<bool>(
         "proof_to_tmp",
-        "If set to true, the proof will be written into the $TMP directory "
+        "If set to true, unsolvability proofs are written to the $TMP directory "
         "(otherwise the current directory is used).",
         "false");
 }
@@ -213,9 +213,3 @@ void collect_preferred_operators(
         }
     }
 }
-
-static plugins::TypedEnumPlugin<UnsolvabilityVerificationType> _enum_plugin({
-    {"none", ""},
-    {"proof", ""},
-    {"proof_discard", ""}
-});
