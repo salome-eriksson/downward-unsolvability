@@ -39,6 +39,10 @@ public:
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
+
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 
 
@@ -107,6 +111,23 @@ template<class Entry>
 bool BestFirstOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
     return is_dead_end(eval_context) && evaluator->dead_ends_are_reliable();
+}
+
+template<class Entry>
+void BestFirstOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+        evaluator->store_deadend_info(eval_context);
+    }
+}
+
+template<class Entry>
+std::pair<SetExpression, Judgment> BestFirstOpenList<Entry>::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    if (eval_context.is_evaluator_value_infinite(evaluator.get())) {
+        return evaluator->get_dead_end_justification(eval_context, unsolvmanager);
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
 
 BestFirstOpenListFactory::BestFirstOpenListFactory(

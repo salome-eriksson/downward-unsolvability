@@ -35,6 +35,11 @@ public:
     bool operator!=(const StateID &other) const {
         return !(*this == other);
     }
+
+    //TODO: only needed for storing dead-end info, find a way around this
+    int get_value() const {
+        return value;
+    }
 };
 
 

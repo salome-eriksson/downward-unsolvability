@@ -4,6 +4,8 @@
 #include "../open_list.h"
 #include "../search_algorithm.h"
 
+#include "../unsolvability/cudd_interface.h"
+
 #include <memory>
 #include <vector>
 
@@ -31,6 +33,9 @@ class EagerSearch : public SearchAlgorithm {
     void update_f_value_statistics(EvaluationContext &eval_context);
     void reward_progress();
 
+    bool create_unsolvability_proof;
+    std::string proof_directory;
+
 protected:
     virtual void initialize() override;
     virtual SearchStatus step() override;
@@ -42,6 +47,9 @@ public:
     virtual void print_statistics() const override;
 
     void dump_search_space() const;
+
+    void write_unsolvability_proof();
+    void write_unsolvability_task_file(const std::vector<int> &varorder);
 };
 
 extern void add_options_to_feature(plugins::Feature &feature);

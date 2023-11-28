@@ -24,6 +24,7 @@ namespace max_heuristic {
 // construction and destruction
 HSPMaxHeuristic::HSPMaxHeuristic(const plugins::Options &opts)
     : RelaxationHeuristic(opts) {
+    unsolv_subsumption_check = opts.get<bool>("unsolv_subsumption");
     if (log.is_at_least_normal()) {
         log << "Initializing HSP max heuristic..." << endl;
     }
@@ -102,6 +103,9 @@ class HSPMaxHeuristicFeature : public plugins::TypedFeature<Evaluator, HSPMaxHeu
 public:
     HSPMaxHeuristicFeature() : TypedFeature("hmax") {
         document_title("Max heuristic");
+        add_option<bool>("unsolv_subsumption",
+                         "check if a dead-end is covered by a previous one",
+                         "false");
 
         Heuristic::add_options_to_feature(*this);
 

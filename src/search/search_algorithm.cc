@@ -171,6 +171,18 @@ void SearchAlgorithm::add_succ_order_options(plugins::Feature &feature) {
     utils::add_rng_options(feature);
 }
 
+void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
+    feature.add_option<bool>(
+        "create_unsolvability_proof",
+        "Write a proof of unsolvability in case of an unsolvable problem.",
+        "false");
+    feature.add_option<bool>(
+        "proof_to_tmp",
+        "If set to true, unsolvability proofs are written to the $TMP directory "
+        "(otherwise the current directory is used).",
+        "false");
+}
+
 void print_initial_evaluator_values(
     const EvaluationContext &eval_context) {
     eval_context.get_cache().for_each_evaluator_result(

@@ -1,4 +1,4 @@
-# See https://www.fast-downward.org/ForDevelopers/AddingSourceFiles
+# See https://www.fast-downward.org/ForDevelopers/CMake
 # for general information on adding source files and CMake libraries.
 #
 # All libraries are enabled by default and users can disable them by specifying
@@ -437,6 +437,8 @@ create_fast_downward_library(
         null_pruning_method
         ordered_set
         successor_generator
+        cudd_interface
+        unsolvabilitymanager
     DEPENDENCY_ONLY
 )
 
@@ -571,11 +573,45 @@ if(USE_LP)
 endif()
 
 create_fast_downward_library(
+        NAME cudd_interface
+        HELP "Interface to the CUDD BDD library"
+        SOURCES
+            unsolvability/cudd_interface
+        DEPENDS
+            unsolvabilitymanager
+        DEPENDENCY_ONLY
+)
+
+if(USE_CUDD)
+    find_package(CUDD)
+    if (CUDD_FOUND)
+        add_definitions("-D HAS_CUDD")
+        include_directories(${CUDD_INCLUDE_DIRS})
+        target_link_libraries(cudd_interface INTERFACE ${CUDD_LIBRARIES})
+    else ()
+        message(FATAL_ERROR "CUDD library not found. Check your CUDD configuration.")
+    endif ()
+else ()
+    message(STATUS "CUDD not enabled.") # DEBUG
+endif()
+
+create_fast_downward_library(
+        NAME unsolvabilitymanager
+        HELP "Unsolvability manager"
+        SOURCES
+            unsolvability/unsolvabilitymanager
+        DEPENDENCY_ONLY
+)
+
+
+create_fast_downward_library(
     NAME relaxation_heuristic
     HELP "The base class for relaxation heuristics"
     SOURCES
         heuristics/array_pool
         heuristics/relaxation_heuristic
+    DEPENDS
+        cudd_interface
     DEPENDENCY_ONLY
 )
 
@@ -653,6 +689,7 @@ create_fast_downward_library(
         heuristics/hm_heuristic
     DEPENDS
         task_properties
+        unsolvabilitymanager
 )
 
 create_fast_downward_library(
@@ -821,6 +858,7 @@ create_fast_downward_library(
         sccs
         task_properties
         variable_order_finder
+        cudd_interface
 )
 
 create_fast_downward_library(

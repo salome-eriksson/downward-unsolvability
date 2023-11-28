@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
+#include <sstream>
 
 using namespace std;
 
@@ -35,8 +36,10 @@ UnaryOperator::UnaryOperator(
 
 
 // construction and destruction
+// TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
 RelaxationHeuristic::RelaxationHeuristic(const plugins::Options &opts)
-    : Heuristic(opts) {
+    : Heuristic(opts), unsolv_subsumption_check(false),
+      unsolvability_setup(false) {
     // Build propositions.
     propositions.resize(task_properties::get_num_facts(task_proxy));
 
@@ -300,5 +303,69 @@ void RelaxationHeuristic::simplify() {
     if (log.is_at_least_normal()) {
         log << " done! [" << unary_operators.size() << " unary operators]" << endl;
     }
+}
+
+// CARE: we assume the heuristic has just been calculated for this state
+std::pair<bool, int> RelaxationHeuristic::get_bdd_for_state(const State &state) {
+    auto it = state_to_bddindex.find(state.get_id().get_value());
+    if (it != state_to_bddindex.end()) {
+        return std::make_pair(true, it->second);
+    }
+    CuddBDD statebdd(cudd_manager, state);
+    if (unsolv_subsumption_check) {
+        for (size_t i = 0; i < bdds.size(); ++i) {
+            if (statebdd.isSubsetOf(bdds[i])) {
+                return std::make_pair(true, i);
+            }
+        }
+    }
+
+    std::vector<std::pair<int, int>> pos_vars;
+    std::vector<std::pair<int, int>> neg_vars;
+    for (size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
+        for (int j = 0; j < task_proxy.get_variables()[i].get_domain_size(); ++j) {
+            if (propositions[proposition_offsets[i] + j].cost == -1) {
+                neg_vars.push_back(std::make_pair(i, j));
+            }
+        }
+    }
+    bdds.push_back(CuddBDD(cudd_manager, pos_vars, neg_vars));
+    state_to_bddindex[state.get_id().get_value()] = bdds.size() - 1;
+    return std::make_pair(false, bdds.size() - 1);
+}
+
+void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
+    if (!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        unsolvability_setup = true;
+    }
+
+    int bddindex = get_bdd_for_state(eval_context.get_state()).second;
+    state_to_bddindex.insert({eval_context.get_state().get_id().get_value(), bddindex});
+}
+
+std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    int bddindex = state_to_bddindex[eval_context.get_state().get_id().get_value()];
+    assert(bddindex >= 0);
+    auto entry = knowledge_for_bdd.find(bddindex);
+
+    if (entry == knowledge_for_bdd.end()) {
+        SetExpression set = unsolvmanager.define_bdd(bdds[bddindex]);
+        SetExpression progression = unsolvmanager.define_set_progression(set, 0);
+        SetExpression empty_set = unsolvmanager.get_emptyset();
+        SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
+        SetExpression goal_set = unsolvmanager.get_goalset();
+        SetExpression goal_intersection = unsolvmanager.define_set_intersection(set, goal_set);
+
+        Judgment empty_dead = unsolvmanager.apply_rule_ed();
+        Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
+        Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
+        Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
+        Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
+
+        entry = knowledge_for_bdd.insert(std::make_pair(bddindex, std::make_pair(set, set_dead))).first;
+    }
+    return entry->second;
 }
 }

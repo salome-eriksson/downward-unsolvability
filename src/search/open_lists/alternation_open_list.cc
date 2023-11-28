@@ -38,6 +38,10 @@ public:
         EvaluationContext &eval_context) const override;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
+
+    virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 
 
@@ -126,6 +130,26 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
     return false;
 }
 
+template<class Entry>
+void AlternationOpenList<Entry>::store_deadend_info(EvaluationContext &eval_context) {
+    for (const auto &sublist : open_lists) {
+        if (sublist->is_dead_end(eval_context)) {
+            return sublist->store_deadend_info(eval_context);
+        }
+    }
+}
+
+template<class Entry>
+std::pair<SetExpression, Judgment> AlternationOpenList<Entry>::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    for (const auto &sublist : open_lists) {
+        if (sublist->is_dead_end(eval_context)) {
+            return sublist->get_dead_end_justification(eval_context, unsolvmanager);
+        }
+    }
+    std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+}
 
 AlternationOpenListFactory::AlternationOpenListFactory(const plugins::Options &options)
     : options(options) {

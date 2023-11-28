@@ -11,6 +11,15 @@ with this flag, which can lead to hard-to-debug errors."
         FALSE)
 
     option(
+            USE_CUDD
+            "Compile with support for CUDD. \
+If CUDD is not installed, the planner will \
+still compile, but using features with flags that depend on CUDD will \
+cause an error. This behavior can be overwritten by setting the \
+option USE_CUDD to false."
+            TRUE)
+
+    option(
         USE_LP
         "Compile with support for all LP solvers installed on this system. \
 If any enabled library requires an LP solver, compile with all \

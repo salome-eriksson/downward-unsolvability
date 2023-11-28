@@ -2,6 +2,7 @@
 #define EVALUATOR_H
 
 #include "evaluation_result.h"
+#include "unsolvability/unsolvabilitymanager.h"
 
 #include "utils/logging.h"
 
@@ -82,6 +83,16 @@ public:
     */
     virtual EvaluationResult compute_result(
         EvaluationContext &eval_context) = 0;
+
+
+    // functions related to unsolvability proof generation
+    // CARE: we assume this function is called right after heuristic computation
+    virtual void store_deadend_info(EvaluationContext &) {}
+
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(EvaluationContext &, UnsolvabilityManager &) {
+        std::cerr << "Not implemented!" << std::endl;
+        utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
+    }
 
     void report_value_for_initial_state(const EvaluationResult &result) const;
     void report_new_minimum_value(const EvaluationResult &result) const;

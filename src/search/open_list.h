@@ -5,6 +5,7 @@
 
 #include "evaluation_context.h"
 #include "operator_id.h"
+#include "unsolvability/unsolvabilitymanager.h"
 
 class StateID;
 
@@ -123,6 +124,11 @@ public:
     virtual bool is_dead_end(EvaluationContext &eval_context) const = 0;
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const = 0;
+
+    // functions related to unsolvability proof generation
+    virtual void store_deadend_info(EvaluationContext &eval_context) = 0;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) = 0;
 };
 
 

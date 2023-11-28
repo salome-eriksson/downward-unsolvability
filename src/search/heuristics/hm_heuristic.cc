@@ -8,6 +8,7 @@
 #include <cassert>
 #include <limits>
 #include <set>
+#include <sstream>
 
 using namespace std;
 
@@ -16,7 +17,8 @@ HMHeuristic::HMHeuristic(const plugins::Options &opts)
     : Heuristic(opts),
       m(opts.get<int>("m")),
       has_cond_effects(task_properties::has_conditional_effects(task_proxy)),
-      goals(task_properties::get_fact_pairs(task_proxy.get_goals())) {
+      goals(task_properties::get_fact_pairs(task_proxy.get_goals())),
+      unsolvability_setup(false) {
     if (log.is_at_least_normal()) {
         log << "Using h^" << m << "." << endl;
         log << "The implementation of the h^m heuristic is preliminary." << endl
@@ -261,6 +263,75 @@ void HMHeuristic::dump_table() const {
             log << "h(" << hm_ent.first << ") = " << hm_ent.second << endl;
         }
     }
+}
+
+
+void HMHeuristic::setup_unsolvability_proof() {
+    int varamount = task_proxy.get_variables().size();
+    fact_to_variable.resize(varamount);
+    strips_varamount = 0;
+    for (int i = 0; i < varamount; ++i) {
+        int domsize = task_proxy.get_variables()[i].get_domain_size();
+        fact_to_variable[i].resize(domsize);
+        for (int j = 0; j < domsize; ++j) {
+            // we want the variables to start with 1 since that is how the DIMACS format works
+            fact_to_variable[i][j] = ++strips_varamount;
+        }
+    }
+
+    // store all mutex information in clause form
+    for (int i = 0; i < varamount; ++i) {
+        int domsize = task_proxy.get_variables()[i].get_domain_size();
+        for (int j = 0; j < domsize - 1; ++j) {
+            for (int k = j + 1; k < domsize; ++k) {
+                mutexes.push_back({-fact_to_variable[i][j], -fact_to_variable[i][k]});
+            }
+        }
+    }
+    unsolvability_setup = true;
+}
+
+void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
+    if (!unsolvability_setup) {
+        setup_unsolvability_proof();
+    }
+
+    std::forward_list<const Tuple *> tuples;
+    for (auto &elem : hm_table) {
+        if (elem.second == numeric_limits<int>::max()) {
+            tuples.push_front(&(elem.first));
+        }
+    }
+    unreachable_tuples.insert({eval_context.get_state().get_id().get_value(), std::move(tuples)});
+}
+
+std::pair<SetExpression, Judgment> HMHeuristic::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    std::vector<std::vector<int>> clauses = mutexes;
+    clauses.reserve(mutexes.size() + unreachable_tuples.size());
+    for (const Tuple *tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
+        std::vector<int> clause;
+        clause.reserve(tuple->size());
+        for (size_t i = 0; i < tuple->size(); ++i) {
+            const FactPair &fact = tuple->at(i);
+            clause.push_back(-fact_to_variable[fact.var][fact.value]);
+        }
+        clauses.push_back(clause);
+    }
+
+    SetExpression set = unsolvmanager.define_horn_formula(strips_varamount, clauses);
+    SetExpression progression = unsolvmanager.define_set_progression(set, 0);
+    SetExpression empty_set = unsolvmanager.get_emptyset();
+    SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
+    SetExpression goal_set = unsolvmanager.get_goalset();
+    SetExpression goal_intersection = unsolvmanager.define_set_intersection(set, goal_set);
+
+    Judgment empty_dead = unsolvmanager.apply_rule_ed();
+    Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
+    Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
+    Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
+    Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
+    return std::make_pair(set, set_dead);
 }
 
 class HMHeuristicFeature : public plugins::TypedFeature<Evaluator, HMHeuristic> {
