@@ -7,12 +7,12 @@
 
 
 UnsolvabilityManager::UnsolvabilityManager(
-        std::string directory, std::shared_ptr<AbstractTask> task)
+    std::string directory, std::shared_ptr<AbstractTask> task)
     : task(task), task_proxy(*task), setcount(0), knowledgecount(0), directory(directory) {
     certstream.open(directory + "proof.txt");
     certstream << "a 0 a\n";
 
-    hex = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e' , 'f'};
+    hex = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 }
 
 int UnsolvabilityManager::apply_dead_rule(int setid, std::string rulename,
@@ -30,8 +30,8 @@ int UnsolvabilityManager::apply_subset_rule(int left_setid, int right_setid, std
                                             std::vector<int> justification) {
     int new_kid = get_new_knowledgeid();
     certstream << "k " << new_kid << " s " << left_setid << " " << right_setid << rulename;
-    for (int jid : justification)  {
-        certstream << " "  << jid;
+    for (int jid : justification) {
+        certstream << " " << jid;
     }
     certstream << "\n";
     return new_kid;
@@ -72,20 +72,20 @@ SetExpression UnsolvabilityManager::get_initset() {
 void UnsolvabilityManager::dump_state(const State &state) {
     int c = 0;
     int count = 3;
-    for(FactProxy fact : state) {
-        for(int j = 0; j < fact.get_variable().get_domain_size(); ++j) {
-            if(fact.get_value() == j) {
+    for (FactProxy fact : state) {
+        for (int j = 0; j < fact.get_variable().get_domain_size(); ++j) {
+            if (fact.get_value() == j) {
                 c += (1 << count);
             }
             count--;
-            if(count==-1) {
+            if (count == -1) {
                 certstream << hex[c];
                 c = 0;
                 count = 3;
             }
         }
     }
-    if(count != 3) {
+    if (count != 3) {
         certstream << hex[c];
     }
 }
@@ -108,7 +108,7 @@ SetExpression UnsolvabilityManager::define_bdd(CuddBDD bdd) {
     return SetExpression(new_sid);
 }
 
-SetExpression UnsolvabilityManager::define_horn_formula(int varamount, std::vector<std::vector<int> > &clauses) {
+SetExpression UnsolvabilityManager::define_horn_formula(int varamount, std::vector<std::vector<int>> &clauses) {
     int new_sid = get_new_setid();
     certstream << "e " << new_sid << " h p cnf " << varamount << " " << clauses.size() << " ";
     for (std::vector<int> clause : clauses) {
@@ -129,7 +129,7 @@ SetExpression UnsolvabilityManager::define_explicit_set(int fact_amount, StateRe
         certstream << i << " ";
     }
     certstream << ": ";
-    for(const StateID &id : state_ids) {
+    for (const StateID &id : state_ids) {
         dump_state(state_registry.lookup_state(id));
         certstream << " ";
     }
@@ -176,31 +176,31 @@ Judgment UnsolvabilityManager::apply_rule_ed() {
     return empty_dead;
 }
 Judgment UnsolvabilityManager::apply_rule_ud(SetExpression set, Judgment &s_dead,
-                                                   Judgment &sp_dead) {
+                                             Judgment &sp_dead) {
     return Judgment(apply_dead_rule(set.id, "ud", {s_dead.id, sp_dead.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_sd(SetExpression set, Judgment &sp_dead,
-                                                   Judgment &s_subset_sp) {
+                                             Judgment &s_subset_sp) {
     return Judgment(apply_dead_rule(set.id, "sd", {sp_dead.id, s_subset_sp.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_pg(SetExpression set, Judgment &progression_subset,
-                                                   Judgment &sp_dead,
-                                                   Judgment &goal_intersection_dead) {
+                                             Judgment &sp_dead,
+                                             Judgment &goal_intersection_dead) {
     return Judgment(apply_dead_rule(set.id, "pg", {progression_subset.id, sp_dead.id, goal_intersection_dead.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_pi(SetExpression set, Judgment &progression_subset,
-                                                   Judgment &sp_dead,
-                                                   Judgment &init_subset) {
+                                             Judgment &sp_dead,
+                                             Judgment &init_subset) {
     return Judgment(apply_dead_rule(set.id, "pi", {progression_subset.id, sp_dead.id, init_subset.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_rg(SetExpression set, Judgment &regression_subset,
-                                                   Judgment &sp_dead,
-                                                   Judgment &goal_intersection_dead) {
+                                             Judgment &sp_dead,
+                                             Judgment &goal_intersection_dead) {
     return Judgment(apply_dead_rule(set.id, "rg", {regression_subset.id, sp_dead.id, goal_intersection_dead.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_ri(SetExpression set, Judgment &regression_subset,
-                                                   Judgment &sp_dead,
-                                                   Judgment &init_subset) {
+                                             Judgment &sp_dead,
+                                             Judgment &init_subset) {
     return Judgment(apply_dead_rule(set.id, "ri", {regression_subset.id, sp_dead.id, init_subset.id}));
 }
 
@@ -231,46 +231,46 @@ Judgment UnsolvabilityManager::apply_rule_di(SetExpression left_set, SetExpressi
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "di", {}));
 }
 Judgment UnsolvabilityManager::apply_rule_su(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &e_subset_epp,
-                                                   Judgment &ep_subset_epp) {
+                                             Judgment &e_subset_epp,
+                                             Judgment &ep_subset_epp) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "su", {e_subset_epp.id, ep_subset_epp.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_si(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &e_subset_ep,
-                                                   Judgment &e_subset_epp) {
+                                             Judgment &e_subset_ep,
+                                             Judgment &e_subset_epp) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "si", {e_subset_ep.id, e_subset_epp.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_st(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &e_subset_ep,
-                                                   Judgment &ep_subset_epp) {
+                                             Judgment &e_subset_ep,
+                                             Judgment &ep_subset_epp) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "st", {e_subset_ep.id, ep_subset_epp.id}));
 }
 
 Judgment UnsolvabilityManager::apply_rule_at(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &prog_subset,
-                                                   Judgment &a_subset) {
+                                             Judgment &prog_subset,
+                                             Judgment &a_subset) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "at", {prog_subset.id, a_subset.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_au(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &a_prog_subset,
-                                                   Judgment &ap_prog_subset) {
+                                             Judgment &a_prog_subset,
+                                             Judgment &ap_prog_subset) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "au", {a_prog_subset.id, ap_prog_subset.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_pt(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &prog_subset,
-                                                   Judgment &sp_subset_s) {
+                                             Judgment &prog_subset,
+                                             Judgment &sp_subset_s) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "pt", {prog_subset.id, sp_subset_s.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_pu(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &s_prog_subset,
-                                                   Judgment &sp_prog_subset) {
+                                             Judgment &s_prog_subset,
+                                             Judgment &sp_prog_subset) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "pu", {s_prog_subset.id, sp_prog_subset.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_pr(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &progression) {
+                                             Judgment &progression) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "pr", {progression.id}));
 }
 Judgment UnsolvabilityManager::apply_rule_rp(SetExpression left_set, SetExpression right_set,
-                                                   Judgment &regression) {
+                                             Judgment &regression) {
     return Judgment(apply_subset_rule(left_set.id, right_set.id, "rp", {regression.id}));
 }

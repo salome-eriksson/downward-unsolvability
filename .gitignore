@@ -8,7 +8,5 @@ __pycache__/
 /hints.txt
 /proof.txt
 /builds/
-/experiments/issue*/.venv/
-/experiments/issue*/data/
 /misc/.tox/
 /misc/autodoc/downward-xmlrpc.secret

@@ -5,8 +5,6 @@
 #include "../evaluation_context.h"
 #include "../unsolvability/cudd_interface.h"
 
-#include "../utils/logging.h"
-
 #include <memory>
 
 namespace merge_and_shrink {
@@ -14,8 +12,6 @@ class FactoredTransitionSystem;
 class MergeAndShrinkRepresentation;
 
 class MergeAndShrinkHeuristic : public Heuristic {
-    utils::LogProxy log;
-
     // The final merge-and-shrink representations, storing goal distances.
     std::vector<std::unique_ptr<MergeAndShrinkRepresentation>> mas_representations;
 
@@ -24,7 +20,7 @@ class MergeAndShrinkHeuristic : public Heuristic {
     void extract_nontrivial_factors(FactoredTransitionSystem &fts);
     void extract_factors(FactoredTransitionSystem &fts);
 
-    CuddManager* cudd_manager;
+    CuddManager *cudd_manager;
     std::vector<int> variable_order;
     // TODO: does this have to be a raw pointer?
     CuddBDD *bdd;
@@ -42,12 +38,12 @@ class MergeAndShrinkHeuristic : public Heuristic {
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 public:
-    explicit MergeAndShrinkHeuristic(const options::Options &opts);
+    explicit MergeAndShrinkHeuristic(const plugins::Options &opts);
 
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
 };
 }
 

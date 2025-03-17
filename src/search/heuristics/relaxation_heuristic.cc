@@ -37,7 +37,7 @@ UnaryOperator::UnaryOperator(
 
 // construction and destruction
 // TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
-RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
+RelaxationHeuristic::RelaxationHeuristic(const plugins::Options &opts)
     : Heuristic(opts), unsolv_subsumption_check(false),
       unsolvability_setup(false) {
     // Build propositions.
@@ -73,7 +73,9 @@ RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
     // Simplify unary operators.
     utils::Timer simplify_timer;
     simplify();
-    utils::g_log << "time to simplify: " << simplify_timer << endl;
+    if (log.is_at_least_normal()) {
+        log << "time to simplify: " << simplify_timer << endl;
+    }
 
     // Cross-reference unary operators.
     vector<vector<OpID>> precondition_of_vectors(propositions.size());
@@ -174,7 +176,9 @@ void RelaxationHeuristic::simplify() {
 
     const int MAX_PRECONDITIONS_TO_TEST = 5;
 
-    utils::g_log << "Simplifying " << unary_operators.size() << " unary operators..." << flush;
+    if (log.is_at_least_normal()) {
+        log << "Simplifying " << unary_operators.size() << " unary operators..." << flush;
+    }
 
     /*
       First, we create a map that maps the preconditions and effect
@@ -296,36 +300,38 @@ void RelaxationHeuristic::simplify() {
             is_dominated),
         unary_operators.end());
 
-    utils::g_log << " done! [" << unary_operators.size() << " unary operators]" << endl;
+    if (log.is_at_least_normal()) {
+        log << " done! [" << unary_operators.size() << " unary operators]" << endl;
+    }
 }
 
 // CARE: we assume the heuristic has just been calculated for this state
-std::pair<bool,int> RelaxationHeuristic::get_bdd_for_state(const State &state) {
+std::pair<bool, int> RelaxationHeuristic::get_bdd_for_state(const State &state) {
     auto it = state_to_bddindex.find(state.get_id().get_value());
     if (it != state_to_bddindex.end()) {
         return std::make_pair(true, it->second);
     }
     CuddBDD statebdd(cudd_manager, state);
-    if(unsolv_subsumption_check) {
-        for(size_t i = 0; i < bdds.size(); ++i) {
-            if(statebdd.isSubsetOf(bdds[i])) {
-                return std::make_pair(true,i);
+    if (unsolv_subsumption_check) {
+        for (size_t i = 0; i < bdds.size(); ++i) {
+            if (statebdd.isSubsetOf(bdds[i])) {
+                return std::make_pair(true, i);
             }
         }
     }
 
-    std::vector<std::pair<int,int>> pos_vars;
-    std::vector<std::pair<int,int>> neg_vars;
-    for(size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
-        for(int j = 0; j < task_proxy.get_variables()[i].get_domain_size(); ++j) {
-            if(propositions[proposition_offsets[i]+j].cost == -1) {
-                neg_vars.push_back(std::make_pair(i,j));
+    std::vector<std::pair<int, int>> pos_vars;
+    std::vector<std::pair<int, int>> neg_vars;
+    for (size_t i = 0; i < task_proxy.get_variables().size(); ++i) {
+        for (int j = 0; j < task_proxy.get_variables()[i].get_domain_size(); ++j) {
+            if (propositions[proposition_offsets[i] + j].cost == -1) {
+                neg_vars.push_back(std::make_pair(i, j));
             }
         }
     }
-    bdds.push_back(CuddBDD(cudd_manager, pos_vars,neg_vars));
-    state_to_bddindex[state.get_id().get_value()] = bdds.size()-1;
-    return std::make_pair(false,bdds.size()-1);
+    bdds.push_back(CuddBDD(cudd_manager, pos_vars, neg_vars));
+    state_to_bddindex[state.get_id().get_value()] = bdds.size() - 1;
+    return std::make_pair(false, bdds.size() - 1);
 }
 
 int RelaxationHeuristic::create_subcertificate(EvaluationContext &eval_context) {
@@ -356,7 +362,7 @@ void RelaxationHeuristic::write_subcertificates(const string &filename) {
 }
 
 void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
-    if(!unsolvability_setup) {
+    if (!unsolvability_setup) {
         cudd_manager = new CuddManager(task);
         unsolvability_setup = true;
     }
@@ -366,12 +372,12 @@ void RelaxationHeuristic::store_deadend_info(EvaluationContext &eval_context) {
 }
 
 std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     int bddindex = state_to_bddindex[eval_context.get_state().get_id().get_value()];
     assert(bddindex >= 0);
     auto entry = knowledge_for_bdd.find(bddindex);
 
-    if(entry == knowledge_for_bdd.end()) {
+    if (entry == knowledge_for_bdd.end()) {
         SetExpression set = unsolvmanager.define_bdd(bdds[bddindex]);
         SetExpression progression = unsolvmanager.define_set_progression(set, 0);
         SetExpression empty_set = unsolvmanager.get_emptyset();

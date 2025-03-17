@@ -41,8 +41,8 @@ public:
     virtual bool is_total() const = 0;
     virtual void dump(utils::LogProxy &log) const = 0;
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) = 0;
-    virtual CuddBDD* get_deadend_bdd(
-                CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) = 0;
+    virtual CuddBDD *get_deadend_bdd(
+        CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) = 0;
     virtual void fill_varorder(std::vector<int> &varorder) = 0;
 };
 
@@ -62,8 +62,8 @@ public:
     virtual bool is_total() const override;
     virtual void dump(utils::LogProxy &log) const override;
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
-    virtual CuddBDD* get_deadend_bdd(
-                CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
+    virtual CuddBDD *get_deadend_bdd(
+        CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
     virtual void fill_varorder(std::vector<int> &varorder);
 };
 
@@ -85,8 +85,8 @@ public:
     virtual bool is_total() const override;
     virtual void dump(utils::LogProxy &log) const override;
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
-    virtual CuddBDD* get_deadend_bdd(
-                CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
+    virtual CuddBDD *get_deadend_bdd(
+        CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
     virtual void fill_varorder(std::vector<int> &varorder);
 };
 }

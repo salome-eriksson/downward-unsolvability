@@ -19,11 +19,12 @@
   if the planner is compiled with USE_CUDD. Otherwise, they just print
   an error message and abort.
 */
-#ifdef USE_CUDD
+#ifdef HAS_CUDD
 #include "cudd.h"
 #define CUDD_METHOD(X) X;
 #else
-class DdNode {};
+class DdNode {
+};
 #define CUDD_METHOD(X) NO_RETURN X { \
         ABORT("CUDD method called but the planner was compiled without CUDD support.\n"); \
 }
@@ -42,19 +43,19 @@ class CuddBDD {
     friend class CuddManager;
 private:
     CuddManager *manager;
-    DdNode* bdd;
+    DdNode *bdd;
 public:
     CUDD_METHOD(CuddBDD())
-    CUDD_METHOD(CuddBDD(CuddManager *manager, bool positive=true))
-    CUDD_METHOD(CuddBDD(CuddManager *manager, int var, int val, bool neg=false))
+    CUDD_METHOD(CuddBDD(CuddManager *manager, bool positive = true))
+    CUDD_METHOD(CuddBDD(CuddManager *manager, int var, int val, bool neg = false))
     CUDD_METHOD(CuddBDD(CuddManager *manager, const State &state))
     //create a cube where pos_facts are true and neg_facts are false
     CUDD_METHOD(CuddBDD(CuddManager *manager,
-                        const std::vector<std::pair<int,int>> &pos_facts,
-                        const std::vector<std::pair<int,int>> &neg_facts))
-    CUDD_METHOD(CuddBDD(const CuddBDD& from))
+                        const std::vector<std::pair<int, int>> &pos_facts,
+                        const std::vector<std::pair<int, int>> &neg_facts))
+    CUDD_METHOD(CuddBDD(const CuddBDD &from))
     CUDD_METHOD(~CuddBDD())
-    CUDD_METHOD(CuddBDD operator=(const CuddBDD& right))
+    CUDD_METHOD(CuddBDD operator=(const CuddBDD &right))
     CUDD_METHOD(void land(int var, int val, bool neg = false))
     CUDD_METHOD(void lor(int var, int val, bool neg = false))
     CUDD_METHOD(void negate())
@@ -77,9 +78,9 @@ public:
 class CuddManager {
     friend class CuddBDD;
 private:
-#ifdef USE_CUDD
+#ifdef HAS_CUDD
     static bool compact_proof;
-    DdManager* ddmgr;
+    DdManager *ddmgr;
     std::vector<int> var_order;
     std::vector<std::vector<int>> fact_to_var;
     std::string filename;
@@ -94,7 +95,7 @@ public:
     // uses default var order
     CUDD_METHOD(CuddManager(std::shared_ptr<AbstractTask> task))
     CUDD_METHOD(CuddManager(std::shared_ptr<AbstractTask> task, std::vector<int> &var_order))
-    CUDD_METHOD(const std::vector<std::vector<int>> * get_fact_to_var() const)
+    CUDD_METHOD(const std::vector<std::vector<int>> *get_fact_to_var() const)
     CUDD_METHOD(void dumpBDDs_certificate(std::vector<CuddBDD> &bdds, std::vector<int> &indices, const std::string &filename) const)
     CUDD_METHOD(void dumpBDDs(std::vector<CuddBDD> &bdds, std::string directory) const)
     CUDD_METHOD(static void set_compact_proof(bool val))

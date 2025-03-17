@@ -3,12 +3,14 @@
 #include "../evaluation_context.h"
 #include "../evaluation_result.h"
 
+#include "../plugins/plugin.h"
+
 using namespace std;
 
 namespace combining_evaluator {
-CombiningEvaluator::CombiningEvaluator(
-    const vector<shared_ptr<Evaluator>> &subevaluators_)
-    : subevaluators(subevaluators_) {
+CombiningEvaluator::CombiningEvaluator(const plugins::Options &opts)
+    : Evaluator(opts),
+      subevaluators(opts.get_list<shared_ptr<Evaluator>>("evals")) {
     all_dead_ends_are_reliable = true;
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators)
         if (!subevaluator->dead_ends_are_reliable())
@@ -70,8 +72,8 @@ void CombiningEvaluator::store_deadend_info(EvaluationContext &eval_context) {
     }
 }
 
-std::pair<SetExpression,Judgment> CombiningEvaluator::get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+std::pair<SetExpression, Judgment> CombiningEvaluator::get_dead_end_justification(
+    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {
             return subevaluator->get_dead_end_justification(eval_context, unsolvmanager);
@@ -81,4 +83,10 @@ std::pair<SetExpression,Judgment> CombiningEvaluator::get_dead_end_justification
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
 
+
+void add_combining_evaluator_options_to_feature(plugins::Feature &feature) {
+    feature.add_list_option<shared_ptr<Evaluator>>(
+        "evals", "at least one evaluator");
+    add_evaluator_options_to_feature(feature);
+}
 }

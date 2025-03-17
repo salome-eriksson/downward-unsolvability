@@ -2,8 +2,7 @@
 
 #include "factored_transition_system.h"
 
-#include "../options/plugin.h"
-
+#include "../plugins/plugin.h"
 #include "../utils/logging.h"
 
 #include <cassert>
@@ -43,16 +42,23 @@ vector<pair<int, int>> MergeSelector::compute_merge_candidates(
 }
 
 void MergeSelector::dump_options(utils::LogProxy &log) const {
-    log << "Merge selector options:" << endl;
-    log << "Name: " << name() << endl;
-    dump_selector_specific_options(log);
+    if (log.is_at_least_normal()) {
+        log << "Merge selector options:" << endl;
+        log << "Name: " << name() << endl;
+        dump_selector_specific_options(log);
+    }
 }
 
-static options::PluginTypePlugin<MergeSelector> _type_plugin(
-    "MergeSelector",
-    "This page describes the available merge selectors. They are used to "
-    "compute the next merge purely based on the state of the given factored "
-    "transition system. They are used in the merge strategy of type "
-    "'stateless', but they can also easily be used in different 'combined' "
-    "merged strategies.");
+static class MergeSelectorCategoryPlugin : public plugins::TypedCategoryPlugin<MergeSelector> {
+public:
+    MergeSelectorCategoryPlugin() : TypedCategoryPlugin("MergeSelector") {
+        document_synopsis(
+            "This page describes the available merge selectors. They are used to "
+            "compute the next merge purely based on the state of the given factored "
+            "transition system. They are used in the merge strategy of type "
+            "'stateless', but they can also easily be used in different 'combined' "
+            "merged strategies.");
+    }
+}
+_category_plugin;
 }
