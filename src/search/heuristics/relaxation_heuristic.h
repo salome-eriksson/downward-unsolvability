@@ -4,7 +4,7 @@
 #include "array_pool.h"
 
 #include "../heuristic.h"
-#include "../unsolvability/cudd_interface.h"
+#include "../certificates/cudd_interface.h"
 #include "../evaluation_context.h"
 
 #include "../utils/collections.h"
@@ -137,7 +137,7 @@ public:
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+        EvaluationContext &eval_context, CertificateManager &certmanager) override;
 };
 }
 

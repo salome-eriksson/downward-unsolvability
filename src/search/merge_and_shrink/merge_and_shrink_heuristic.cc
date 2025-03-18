@@ -173,21 +173,21 @@ std::vector<int> MergeAndShrinkHeuristic::get_varorder() {
 }
 
 std::pair<SetExpression, Judgment> MergeAndShrinkHeuristic::get_dead_end_justification(
-    EvaluationContext &, UnsolvabilityManager &unsolvmanager) {
+    EvaluationContext &, CertificateManager &certmanager) {
     if (!deadends_shown_dead) {
         get_bdd();
-        SetExpression set = unsolvmanager.define_bdd(*bdd);
-        SetExpression progression = unsolvmanager.define_set_progression(set, 0);
-        SetExpression empty_set = unsolvmanager.get_emptyset();
-        SetExpression union_with_empty = unsolvmanager.define_set_union(set, empty_set);
-        SetExpression goal_set = unsolvmanager.get_goalset();
-        SetExpression goal_intersection = unsolvmanager.define_set_intersection(set, goal_set);
+        SetExpression set = certmanager.define_bdd(*bdd);
+        SetExpression progression = certmanager.define_set_progression(set, 0);
+        SetExpression empty_set = certmanager.get_emptyset();
+        SetExpression union_with_empty = certmanager.define_set_union(set, empty_set);
+        SetExpression goal_set = certmanager.get_goalset();
+        SetExpression goal_intersection = certmanager.define_set_intersection(set, goal_set);
 
-        Judgment empty_dead = unsolvmanager.apply_rule_ed();
-        Judgment progression_closed = unsolvmanager.make_statement(progression, union_with_empty, "b2");
-        Judgment goal_intersection_empty = unsolvmanager.make_statement(goal_intersection, empty_set, "b1");
-        Judgment goal_intersection_dead = unsolvmanager.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
-        Judgment set_dead = unsolvmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
+        Judgment empty_dead = certmanager.apply_rule_ed();
+        Judgment progression_closed = certmanager.make_statement(progression, union_with_empty, "b2");
+        Judgment goal_intersection_empty = certmanager.make_statement(goal_intersection, empty_set, "b1");
+        Judgment goal_intersection_dead = certmanager.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
+        Judgment set_dead = certmanager.apply_rule_pg(set, progression_closed, empty_dead, goal_intersection_dead);
 
         set_and_dead_knowledge = std::make_pair(set, set_dead);
         deadends_shown_dead = true;

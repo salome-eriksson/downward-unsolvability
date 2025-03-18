@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "../unsolvability/cudd_interface.h"
+#include "../certificates/cudd_interface.h"
 
 class State;
 

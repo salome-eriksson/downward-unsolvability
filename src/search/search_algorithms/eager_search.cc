@@ -10,7 +10,7 @@
 #include "../task_utils/successor_generator.h"
 #include "../utils/logging.h"
 
-#include "../unsolvability/unsolvabilitymanager.h"
+#include "../certificates/certificatemanager.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -38,33 +38,33 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
 
     if(unsolv_type != UnsolvabilityVerificationType::NONE) {
         // TODO: reenable unsolv directory as string
-        /*if(unsolvability_directory.compare(".") == 0) {
-            unsolvability_directory = "";
+        /*if(certificate_directory.compare(".") == 0) {
+            certificate_directory = "";
         }
         // expand environment variables
-        size_t found = unsolvability_directory.find('$');
+        size_t found = certificate_directory.find('$');
         while(found != std::string::npos) {
-            size_t end = unsolvability_directory.find('/');
+            size_t end = certificate_directory.find('/');
             std::string envvar;
             if(end == std::string::npos) {
-                envvar = unsolvability_directory.substr(found+1);
+                envvar = certificate_directory.substr(found+1);
             } else {
-                envvar = unsolvability_directory.substr(found+1,end-found-1);
+                envvar = certificate_directory.substr(found+1,end-found-1);
             }
             // to upper case
             for (size_t i = 0; i < envvar.size(); i++) {
                 envvar.at(i) = toupper(envvar.at(i));
             }
             std::string expanded = std::getenv(envvar.c_str());
-            unsolvability_directory.replace(found,envvar.length() + 1,expanded);
-            found = unsolvability_directory.find('$');
+            certificate_directory.replace(found,envvar.length() + 1,expanded);
+            found = certificate_directory.find('$');
         }
-        if (!unsolvability_directory.empty() && !(unsolvability_directory.back() == '/')) {
-            unsolvability_directory += "/";
+        if (!certificate_directory.empty() && !(certificate_directory.back() == '/')) {
+            certificate_directory += "/";
         }*/
-        unsolvability_directory = "";
+        certificate_directory = "";
         std::cout << "Generating unsolvability verification in "
-                  << unsolvability_directory << std::endl;
+                  << certificate_directory << std::endl;
         if (unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             CuddManager::set_compact_proof(false);
         } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
@@ -149,7 +149,7 @@ void EagerSearch::initialize() {
 
     if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE ||
             unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
-        unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
+        unsolvability_certificate_hints.open(certificate_directory + "hints.txt");
     }
 }
 
@@ -479,13 +479,13 @@ void dump_statebdd(const State &s, std::ofstream &statebdd_file,
 
 void EagerSearch::write_unsolvability_certificate() {
     if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_NOHINTS) {
-        unsolvability_certificate_hints.open(unsolvability_directory + "hints.txt");
+        unsolvability_certificate_hints.open(certificate_directory + "hints.txt");
     }
     unsolvability_certificate_hints << "end hints";
     unsolvability_certificate_hints.close();
 
     double writing_start = utils::g_timer();
-    std::string hcerts_filename = unsolvability_directory + "h_cert.bdd";
+    std::string hcerts_filename = certificate_directory + "h_cert.bdd";
     open_list->write_subcertificates(hcerts_filename);
 
     std::vector<int> varorder = open_list->get_varorder();
@@ -505,7 +505,7 @@ void EagerSearch::write_unsolvability_certificate() {
         }
     }
 
-    std::string statebdd_file = unsolvability_directory + "states.bdd";
+    std::string statebdd_file = certificate_directory + "states.bdd";
     if (unsolv_type == UnsolvabilityVerificationType::CERTIFICATE_FASTDUMP) {
         std::ofstream stream;
         stream.open(statebdd_file);
@@ -538,19 +538,19 @@ void EagerSearch::write_unsolvability_certificate() {
 
     // there is currently no safeguard that these are the actual names used
     std::ofstream cert_file;
-    cert_file.open(unsolvability_directory + "certificate.txt");
+    cert_file.open(certificate_directory + "certificate.txt");
     cert_file << "certificate-type:disjunctive:1\n";
     cert_file << "bdd-files:2\n";
-    cert_file << unsolvability_directory << "states.bdd\n";
-    cert_file << unsolvability_directory << "h_cert.bdd\n";
-    cert_file << "hints:" << unsolvability_directory << "hints.txt\n";
+    cert_file << certificate_directory << "states.bdd\n";
+    cert_file << certificate_directory << "h_cert.bdd\n";
+    cert_file << "hints:" << certificate_directory << "hints.txt\n";
     cert_file.close();
 
     /*
       Writing the task file at the end minimizes the chances that both task and
       certificate file are there but the planner could not finish writing them.
      */
-    write_unsolvability_task_file(varorder);
+    write_certificate_task_file(varorder);
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability certificate: " << writing_end - writing_start << std::endl;
 
@@ -558,7 +558,7 @@ void EagerSearch::write_unsolvability_certificate() {
 
 void EagerSearch::write_unsolvability_proof() {
     double writing_start = utils::g_timer();
-    UnsolvabilityManager unsolvmgr(unsolvability_directory, task);
+    CertificateManager certmgr(certificate_directory, task);
     std::vector<int> varorder(task_proxy.get_variables().size());
     for (size_t i = 0; i < varorder.size(); ++i) {
         varorder[i] = i;
@@ -572,22 +572,22 @@ void EagerSearch::write_unsolvability_proof() {
         EvaluationContext eval_context(init_state,
                                        0,
                                        false, &statistics);
-        std::pair<SetExpression, Judgment> deadend = open_list->get_dead_end_justification(eval_context, unsolvmgr);
+        std::pair<SetExpression, Judgment> deadend = open_list->get_dead_end_justification(eval_context, certmgr);
         SetExpression deadend_set = deadend.first;
         Judgment deadend_set_dead = deadend.second;
-        SetExpression initial_set = unsolvmgr.get_initset();
-        Judgment init_subset_deadend_set = unsolvmgr.make_statement(initial_set, deadend_set, "b1");
-        Judgment init_dead = unsolvmgr.apply_rule_sd(initial_set, deadend_set_dead, init_subset_deadend_set);
-        unsolvmgr.apply_rule_ci(init_dead);
+        SetExpression initial_set = certmgr.get_initset();
+        Judgment init_subset_deadend_set = certmgr.make_statement(initial_set, deadend_set, "b1");
+        Judgment init_dead = certmgr.apply_rule_sd(initial_set, deadend_set_dead, init_subset_deadend_set);
+        certmgr.apply_rule_ci(init_dead);
 
         std::cout << "dumping bdds" << std::endl;
-        unsolvmgr.dump_BDDs();
+        certmgr.dump_BDDs();
 
         /*
           Writing the task file at the end minimizes the chances that both task and
           proof file are there but the planner could not finish writing them.
          */
-        write_unsolvability_task_file(varorder);
+        write_certificate_task_file(varorder);
 
         double writing_end = utils::g_timer();
         std::cout << "Time for writing unsolvability proof: "
@@ -636,15 +636,15 @@ void EagerSearch::write_unsolvability_proof() {
                                            0,
                                            false, &statistics);
             std::pair<SetExpression, Judgment> deadend =
-                open_list->get_dead_end_justification(eval_context, unsolvmgr);
+                open_list->get_dead_end_justification(eval_context, certmgr);
             SetExpression dead_end_set = deadend.first;
             Judgment deadend_set_dead = deadend.second;
 
 
             // prove that an explicit set only containing dead end is dead
-            SetExpression state_set = unsolvmgr.define_explicit_set(fact_amount, state_registry, {id});
-            Judgment state_subset_dead_end_set = unsolvmgr.make_statement(state_set, dead_end_set, "b4");
-            Judgment state_dead = unsolvmgr.apply_rule_sd(state_set, deadend_set_dead, state_subset_dead_end_set);
+            SetExpression state_set = certmgr.define_explicit_set(fact_amount, state_registry, {id});
+            Judgment state_subset_dead_end_set = certmgr.make_statement(state_set, dead_end_set, "b4");
+            Judgment state_dead = certmgr.apply_rule_sd(state_set, deadend_set_dead, state_subset_dead_end_set);
             merge_tree[mt_pos].set = state_set;
             merge_tree[mt_pos].justification = state_dead;
             merge_tree[mt_pos].de_pos_begin = dead_ends.size() - 1;
@@ -657,8 +657,8 @@ void EagerSearch::write_unsolvability_proof() {
                 MergeTreeEntry &mte_right = merge_tree[mt_pos - 1];
 
                 // show that implicit union between the two sets is dead
-                SetExpression implicit_union = unsolvmgr.define_set_union(mte_left.set, mte_right.set);
-                Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
+                SetExpression implicit_union = certmgr.define_set_union(mte_left.set, mte_right.set);
+                Judgment implicit_union_dead = certmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
 
                 // the left entry represents the merged entry while the right entry will be considered deleted
                 mte_left.depth++;
@@ -678,8 +678,8 @@ void EagerSearch::write_unsolvability_proof() {
 
     // no dead ends --> use empty set
     if (dead_ends.size() == 0) {
-        dead_end_set = unsolvmgr.get_emptyset();
-        deadends_dead = unsolvmgr.apply_rule_ed();
+        dead_end_set = certmgr.get_emptyset();
+        deadends_dead = certmgr.apply_rule_ed();
     } else {
         // if the merge tree is not a complete binary tree, we first need to shrink it up to size 1
         // TODO: this is copy paste from above...
@@ -688,8 +688,8 @@ void EagerSearch::write_unsolvability_proof() {
             MergeTreeEntry &mte_right = merge_tree[mt_pos - 1];
 
             // Show that implicit union between the two sets is dead.
-            SetExpression implicit_union = unsolvmgr.define_set_union(mte_left.set, mte_right.set);
-            Judgment implicit_union_dead = unsolvmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
+            SetExpression implicit_union = certmgr.define_set_union(mte_left.set, mte_right.set);
+            Judgment implicit_union_dead = certmgr.apply_rule_ud(implicit_union, mte_left.justification, mte_right.justification);
             mt_pos--;
             merge_tree[mt_pos - 1].depth++;
             merge_tree[mt_pos - 1].set = implicit_union;
@@ -698,14 +698,14 @@ void EagerSearch::write_unsolvability_proof() {
         bdds.push_back(dead);
 
         // Build an explicit set containing all dead ends.
-        SetExpression all_dead_ends = unsolvmgr.define_explicit_set(fact_amount, state_registry, dead_ends);
+        SetExpression all_dead_ends = certmgr.define_explicit_set(fact_amount, state_registry, dead_ends);
         // Show that all_de_explicit is a subset to the union of all dead ends and thus dead.
-        Judgment expl_deadends_subset = unsolvmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
-        Judgment expl_deadends_dead = unsolvmgr.apply_rule_sd(all_dead_ends, merge_tree[0].justification, expl_deadends_subset);
+        Judgment expl_deadends_subset = certmgr.make_statement(all_dead_ends, merge_tree[0].set, "b1");
+        Judgment expl_deadends_dead = certmgr.apply_rule_sd(all_dead_ends, merge_tree[0].justification, expl_deadends_subset);
         // Show that the bdd containing all dead ends is a subset to the explicit set containing all dead ends.
-        SetExpression dead_ends_bdd = unsolvmgr.define_bdd(bdds[bdds.size() - 1]);
-        Judgment bdd_subset_explicit = unsolvmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
-        Judgment bdd_dead = unsolvmgr.apply_rule_sd(dead_ends_bdd, expl_deadends_dead, bdd_subset_explicit);
+        SetExpression dead_ends_bdd = certmgr.define_bdd(bdds[bdds.size() - 1]);
+        Judgment bdd_subset_explicit = certmgr.make_statement(dead_ends_bdd, all_dead_ends, "b4");
+        Judgment bdd_dead = certmgr.apply_rule_sd(dead_ends_bdd, expl_deadends_dead, bdd_subset_explicit);
 
         dead_end_set = dead_ends_bdd;
         deadends_dead = bdd_dead;
@@ -714,26 +714,26 @@ void EagerSearch::write_unsolvability_proof() {
     bdds.push_back(expanded);
 
     // Show that expanded states only lead to themselves and dead states.
-    SetExpression expanded_set = unsolvmgr.define_bdd(bdds[bdds.size() - 1]);
-    SetExpression expanded_progressed = unsolvmgr.define_set_progression(expanded_set, 0);
-    SetExpression expanded_union_dead = unsolvmgr.define_set_union(expanded_set, dead_end_set);
-    SetExpression goal_set = unsolvmgr.get_goalset();
-    SetExpression goal_intersection = unsolvmgr.define_set_intersection(expanded_set, goal_set);
+    SetExpression expanded_set = certmgr.define_bdd(bdds[bdds.size() - 1]);
+    SetExpression expanded_progressed = certmgr.define_set_progression(expanded_set, 0);
+    SetExpression expanded_union_dead = certmgr.define_set_union(expanded_set, dead_end_set);
+    SetExpression goal_set = certmgr.get_goalset();
+    SetExpression goal_intersection = certmgr.define_set_intersection(expanded_set, goal_set);
 
-    Judgment empty_dead = unsolvmgr.apply_rule_ed();
-    Judgment progression_to_deadends = unsolvmgr.make_statement(expanded_progressed, expanded_union_dead, "b2");
-    Judgment goal_intersection_empty = unsolvmgr.make_statement(goal_intersection, unsolvmgr.get_emptyset(), "b1");
-    Judgment goal_intersection_dead = unsolvmgr.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
-    Judgment expanded_dead = unsolvmgr.apply_rule_pg(expanded_set, progression_to_deadends, deadends_dead, goal_intersection_dead);
+    Judgment empty_dead = certmgr.apply_rule_ed();
+    Judgment progression_to_deadends = certmgr.make_statement(expanded_progressed, expanded_union_dead, "b2");
+    Judgment goal_intersection_empty = certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
+    Judgment goal_intersection_dead = certmgr.apply_rule_sd(goal_intersection, empty_dead, goal_intersection_empty);
+    Judgment expanded_dead = certmgr.apply_rule_pg(expanded_set, progression_to_deadends, deadends_dead, goal_intersection_dead);
 
     // Show that the initial state is dead since it is in expanded union dead.
-    Judgment init_in_expanded = unsolvmgr.make_statement(unsolvmgr.get_initset(), expanded_set, "b1");
-    Judgment init_dead = unsolvmgr.apply_rule_sd(unsolvmgr.get_initset(), expanded_dead, init_in_expanded);
-    unsolvmgr.apply_rule_ci(init_dead);
+    Judgment init_in_expanded = certmgr.make_statement(certmgr.get_initset(), expanded_set, "b1");
+    Judgment init_dead = certmgr.apply_rule_sd(certmgr.get_initset(), expanded_dead, init_in_expanded);
+    certmgr.apply_rule_ci(init_dead);
 
     std::cout << "dumping bdds" << std::endl;
 
-    unsolvmgr.dump_BDDs();
+    certmgr.dump_BDDs();
 
     std::cout << "done dumping bdds" << std::endl;
 
@@ -741,7 +741,7 @@ void EagerSearch::write_unsolvability_proof() {
       Writing the task file at the end minimizes the chances that both task and
       proof file are there but the planner could not finish writing them.
      */
-    write_unsolvability_task_file(varorder);
+    write_certificate_task_file(varorder);
 
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability proof: "
@@ -749,7 +749,7 @@ void EagerSearch::write_unsolvability_proof() {
 }
 
 
-void EagerSearch::write_unsolvability_task_file(const std::vector<int> &varorder) {
+void EagerSearch::write_certificate_task_file(const std::vector<int> &varorder) {
     assert(varorder.size() == task_proxy.get_variables().size());
     std::vector<std::vector<int>> fact_to_var(varorder.size(), std::vector<int>());
     int fact_amount = 0;
@@ -762,7 +762,7 @@ void EagerSearch::write_unsolvability_task_file(const std::vector<int> &varorder
     }
 
     std::ofstream task_file;
-    task_file.open(unsolvability_directory + "task.txt");
+    task_file.open(certificate_directory + "task.txt");
 
     task_file << "begin_atoms:" << fact_amount << "\n";
     for (size_t i = 0; i < varorder.size(); ++i) {

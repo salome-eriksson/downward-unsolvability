@@ -3,7 +3,7 @@
 
 #include "../heuristic.h"
 #include "../evaluation_context.h"
-#include "../unsolvability/cudd_interface.h"
+#include "../certificates/cudd_interface.h"
 
 #include <memory>
 
@@ -43,7 +43,7 @@ public:
     // currently not used
     //virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+        EvaluationContext &eval_context, CertificateManager &certmanager) override;
 };
 }
 

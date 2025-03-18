@@ -4,7 +4,7 @@
 #include "../open_list.h"
 #include "../search_algorithm.h"
 
-#include "../unsolvability/cudd_interface.h"
+#include "../certificates/cudd_interface.h"
 
 #include <memory>
 #include <vector>
@@ -34,7 +34,7 @@ class EagerSearch : public SearchAlgorithm {
     void update_f_value_statistics(EvaluationContext &eval_context);
     void reward_progress();
 
-    std::string unsolvability_directory;
+    std::string certificate_directory;
     std::ofstream unsolvability_certificate_hints;
 
 protected:
@@ -51,7 +51,7 @@ public:
 
     void write_unsolvability_certificate();
     void write_unsolvability_proof();
-    void write_unsolvability_task_file(const std::vector<int> &varorder);
+    void write_certificate_task_file(const std::vector<int> &varorder);
 };
 
 extern void add_options_to_feature(plugins::Feature &feature);

@@ -45,7 +45,7 @@ public:
 
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) override;
+        EvaluationContext &eval_context, CertificateManager &certmanager) override;
 };
 
 
@@ -177,10 +177,10 @@ void AlternationOpenList<Entry>::store_deadend_info(EvaluationContext &eval_cont
 
 template<class Entry>
 std::pair<SetExpression, Judgment> AlternationOpenList<Entry>::get_dead_end_justification(
-    EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) {
+    EvaluationContext &eval_context, CertificateManager &certmanager) {
     for (const auto &sublist : open_lists) {
         if (sublist->is_dead_end(eval_context)) {
-            return sublist->get_dead_end_justification(eval_context, unsolvmanager);
+            return sublist->get_dead_end_justification(eval_context, certmanager);
         }
     }
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;

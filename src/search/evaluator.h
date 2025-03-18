@@ -2,7 +2,7 @@
 #define EVALUATOR_H
 
 #include "evaluation_result.h"
-#include "unsolvability/unsolvabilitymanager.h"
+#include "certificates/certificatemanager.h"
 
 #include "utils/logging.h"
 
@@ -95,7 +95,7 @@ public:
     // CARE: we assume this function is called right after heuristic computation
     virtual void store_deadend_info(EvaluationContext &) {}
 
-    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(EvaluationContext &, UnsolvabilityManager &) {
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(EvaluationContext &, CertificateManager &) {
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }

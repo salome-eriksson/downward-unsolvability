@@ -1,5 +1,5 @@
-#ifndef UNSOLVABILITYMANAGER_H
-#define UNSOLVABILITYMANAGER_H
+#ifndef CERTIFICATEMANAGER_H
+#define CERTIFICATEMANAGER_H
 
 #include "cudd_interface.h"
 
@@ -9,7 +9,7 @@
 #include <fstream>
 
 class Judgment {
-    friend class UnsolvabilityManager;
+    friend class CertificateManager;
     int id;
 
     Judgment(int id)
@@ -29,7 +29,7 @@ public:
 };
 
 class SetExpression {
-    friend class UnsolvabilityManager;
+    friend class CertificateManager;
     int id;
 
     SetExpression(int id)
@@ -47,7 +47,7 @@ public:
     }
 };
 
-class UnsolvabilityManager {
+class CertificateManager {
 private:
     std::shared_ptr<AbstractTask> task;
     TaskProxy task_proxy;
@@ -74,7 +74,7 @@ private:
     int apply_subset_rule(int left_setid, int right_setid, std::string rulename, std::vector<int> justification);
 
 public:
-    UnsolvabilityManager(std::string directory, std::shared_ptr<AbstractTask> task);
+    CertificateManager(std::string directory, std::shared_ptr<AbstractTask> task);
 
 
     SetExpression get_emptyset();
@@ -155,4 +155,4 @@ public:
                            Judgment &regression);
 };
 
-#endif // UNSOLVABILITYMANAGER_H
+#endif // CERTIFICATEMANAGER_H

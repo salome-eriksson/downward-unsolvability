@@ -438,7 +438,7 @@ create_fast_downward_library(
         ordered_set
         successor_generator
         cudd_interface
-        unsolvabilitymanager
+        certificatemanager
     DEPENDENCY_ONLY
 )
 
@@ -576,9 +576,9 @@ create_fast_downward_library(
         NAME cudd_interface
         HELP "Interface to the CUDD BDD library"
         SOURCES
-            unsolvability/cudd_interface
+            certificates/cudd_interface
         DEPENDS
-            unsolvabilitymanager
+            certificatemanager
         DEPENDENCY_ONLY
 )
 
@@ -596,10 +596,10 @@ else ()
 endif()
 
 create_fast_downward_library(
-        NAME unsolvabilitymanager
-        HELP "Unsolvability manager"
+        NAME certificatemanager
+        HELP "Certificate manager"
         SOURCES
-            unsolvability/unsolvabilitymanager
+            certificates/certificatemanager
         DEPENDENCY_ONLY
 )
 
@@ -689,7 +689,7 @@ create_fast_downward_library(
         heuristics/hm_heuristic
     DEPENDS
         task_properties
-        unsolvabilitymanager
+        certificatemanager
 )
 
 create_fast_downward_library(

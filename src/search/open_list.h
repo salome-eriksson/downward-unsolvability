@@ -5,7 +5,7 @@
 
 #include "evaluation_context.h"
 #include "operator_id.h"
-#include "unsolvability/unsolvabilitymanager.h"
+#include "certificates/certificatemanager.h"
 
 class StateID;
 
@@ -135,7 +135,7 @@ public:
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) = 0;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
-        EvaluationContext &eval_context, UnsolvabilityManager &unsolvmanager) = 0;
+        EvaluationContext &eval_context, CertificateManager &certmanager) = 0;
 };
 
 
