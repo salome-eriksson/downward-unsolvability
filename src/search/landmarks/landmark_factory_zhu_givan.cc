@@ -4,10 +4,9 @@
 #include "landmark_graph.h"
 #include "util.h"
 
-#include "../option_parser.h"
-#include "../plugin.h"
 #include "../task_proxy.h"
 
+#include "../plugins/plugin.h"
 #include "../utils/logging.h"
 
 #include <iostream>
@@ -17,14 +16,17 @@
 using namespace std;
 
 namespace landmarks {
-LandmarkFactoryZhuGivan::LandmarkFactoryZhuGivan(const Options &opts)
-    : use_orders(opts.get<bool>("use_orders")) {
+LandmarkFactoryZhuGivan::LandmarkFactoryZhuGivan(const plugins::Options &opts)
+    : LandmarkFactoryRelaxation(opts),
+      use_orders(opts.get<bool>("use_orders")) {
 }
 
 void LandmarkFactoryZhuGivan::generate_relaxed_landmarks(
     const shared_ptr<AbstractTask> &task, Exploration &) {
     TaskProxy task_proxy(*task);
-    utils::g_log << "Generating landmarks using Zhu/Givan label propagation\n";
+    if (log.is_at_least_normal()) {
+        log << "Generating landmarks using Zhu/Givan label propagation" << endl;
+    }
 
     compute_triggers(task_proxy);
 
@@ -47,7 +49,9 @@ void LandmarkFactoryZhuGivan::extract_landmarks(
      */
     for (FactProxy goal : task_proxy.get_goals()) {
         if (!last_prop_layer[goal.get_variable().get_id()][goal.get_value()].reached()) {
-            utils::g_log << "Problem not solvable, even if relaxed.\n";
+            if (log.is_at_least_normal()) {
+                log << "Problem not solvable, even if relaxed." << endl;
+            }
             Landmark landmark({goal.get_pair()}, false, false, true);
             lm_graph->add_landmark(move(landmark));
             return;
@@ -304,24 +308,23 @@ bool LandmarkFactoryZhuGivan::supports_conditional_effects() const {
     return true;
 }
 
-static shared_ptr<LandmarkFactory> _parse(OptionParser &parser) {
-    parser.document_synopsis(
-        "Zhu/Givan Landmarks",
-        "The landmark generation method introduced by "
-        "Zhu & Givan (ICAPS 2003 Doctoral Consortium).");
-    _add_use_orders_option_to_parser(parser);
-    Options opts = parser.parse();
+class LandmarkFactoryZhuGivanFeature : public plugins::TypedFeature<LandmarkFactory, LandmarkFactoryZhuGivan> {
+public:
+    LandmarkFactoryZhuGivanFeature() : TypedFeature("lm_zg") {
+        document_title("Zhu/Givan Landmarks");
+        document_synopsis(
+            "The landmark generation method introduced by "
+            "Zhu & Givan (ICAPS 2003 Doctoral Consortium).");
 
-    // TODO: Make sure that conditional effects are indeed supported.
-    parser.document_language_support("conditional_effects",
-                                     "We think they are supported, but this "
-                                     "is not 100% sure.");
+        add_landmark_factory_options_to_feature(*this);
+        add_use_orders_option_to_feature(*this);
 
-    if (parser.dry_run())
-        return nullptr;
-    else
-        return make_shared<LandmarkFactoryZhuGivan>(opts);
-}
+        // TODO: Make sure that conditional effects are indeed supported.
+        document_language_support(
+            "conditional_effects",
+            "We think they are supported, but this is not 100% sure.");
+    }
+};
 
-static Plugin<LandmarkFactory> _plugin("lm_zg", _parse);
+static plugins::FeaturePlugin<LandmarkFactoryZhuGivanFeature> _plugin;
 }

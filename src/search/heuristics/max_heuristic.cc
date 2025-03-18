@@ -1,8 +1,6 @@
 #include "max_heuristic.h"
 
-#include "../option_parser.h"
-#include "../plugin.h"
-
+#include "../plugins/plugin.h"
 #include "../utils/logging.h"
 
 #include <cassert>
@@ -24,10 +22,12 @@ namespace max_heuristic {
  */
 
 // construction and destruction
-HSPMaxHeuristic::HSPMaxHeuristic(const Options &opts)
+HSPMaxHeuristic::HSPMaxHeuristic(const plugins::Options &opts)
     : RelaxationHeuristic(opts), manager(CuddManager(task)) {
 //    unsolv_subsumption_check = opts.get<bool>("unsolv_subsumption");
-    utils::g_log << "Initializing HSP max heuristic..." << endl;
+    if (log.is_at_least_normal()) {
+        log << "Initializing HSP max heuristic..." << endl;
+    }
 }
 
 // heuristic computation
@@ -196,28 +196,28 @@ std::pair<SetExpression, Judgment> HSPMaxHeuristic::justify_h_value (
     }
 }
 
-static shared_ptr<Heuristic> _parse(OptionParser &parser) {
-    parser.document_synopsis("Max heuristic", "");
-    parser.document_language_support("action costs", "supported");
-    parser.document_language_support("conditional effects", "supported");
-    parser.document_language_support(
-        "axioms",
-        "supported (in the sense that the planner won't complain -- "
-        "handling of axioms might be very stupid "
-        "and even render the heuristic unsafe)");
-    parser.document_property("admissible", "yes for tasks without axioms");
-    parser.document_property("consistent", "yes for tasks without axioms");
-    parser.document_property("safe", "yes for tasks without axioms");
-    parser.document_property("preferred operators", "no");
 
-    Heuristic::add_options_to_parser(parser);
-    Options opts = parser.parse();
-    if (parser.dry_run())
-        return nullptr;
-    else
-        return make_shared<HSPMaxHeuristic>(opts);
-}
+class HSPMaxHeuristicFeature : public plugins::TypedFeature<Evaluator, HSPMaxHeuristic> {
+public:
+    HSPMaxHeuristicFeature() : TypedFeature("hmax") {
+        document_title("Max heuristic");
 
+        Heuristic::add_options_to_feature(*this);
 
-static Plugin<Evaluator> _plugin("hmax", _parse);
+        document_language_support("action costs", "supported");
+        document_language_support("conditional effects", "supported");
+        document_language_support(
+            "axioms",
+            "supported (in the sense that the planner won't complain -- "
+            "handling of axioms might be very stupid "
+            "and even render the heuristic unsafe)");
+
+        document_property("admissible", "yes for tasks without axioms");
+        document_property("consistent", "yes for tasks without axioms");
+        document_property("safe", "yes for tasks without axioms");
+        document_property("preferred operators", "no");
+    }
+};
+
+static plugins::FeaturePlugin<HSPMaxHeuristicFeature> _plugin;
 }

@@ -12,7 +12,7 @@
 //#include <unordered_map>
 #include <vector>
 
-namespace options {
+namespace plugins {
 class Options;
 }
 
@@ -39,7 +39,7 @@ class HMHeuristic : public Heuristic {
 /*    bool unsolvability_setup;
     std::vector<std::vector<int>> fact_to_variable;
 
-    std::unordered_map<int,std::forward_list<const Tuple *>> unreachable_tuples;
+    std::unordered_map<int, std::forward_list<const Tuple *>> unreachable_tuples;
     int strips_varamount;
     std::vector<std::vector<int>> mutexes;*/
 
@@ -72,13 +72,13 @@ protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 
 public:
-    explicit HMHeuristic(const options::Options &opts);
+    explicit HMHeuristic(const plugins::Options &opts);
 
     virtual bool dead_ends_are_reliable() const override;
 
 /*    virtual void store_deadend_info(EvaluationContext &eval_context) override;
-    virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+    virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
 */
 };
 }

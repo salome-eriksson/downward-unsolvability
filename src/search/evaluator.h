@@ -4,13 +4,15 @@
 #include "evaluation_result.h"
 #include "certificates/certificatemanager.h"
 
+#include "utils/logging.h"
+
 #include <set>
 
 class EvaluationContext;
 class State;
 
-namespace utils {
-class LogProxy;
+namespace plugins {
+class Options;
 }
 
 class Evaluator {
@@ -18,10 +20,11 @@ class Evaluator {
     const bool use_for_reporting_minima;
     const bool use_for_boosting;
     const bool use_for_counting_evaluations;
-
+protected:
+    mutable utils::LogProxy log;
 public:
-    Evaluator(
-        const std::string &description = "<none>",
+    explicit Evaluator(
+        const plugins::Options &opts,
         bool use_for_reporting_minima = false,
         bool use_for_boosting = false,
         bool use_for_counting_evaluations = false);
@@ -87,10 +90,8 @@ public:
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }
 
-    void report_value_for_initial_state(
-        const EvaluationResult &result, utils::LogProxy &log) const;
-    void report_new_minimum_value(
-        const EvaluationResult &result, utils::LogProxy &log) const;
+    void report_value_for_initial_state(const EvaluationResult &result) const;
+    void report_new_minimum_value(const EvaluationResult &result) const;
 
     const std::string &get_description() const;
     bool is_used_for_reporting_minima() const;
@@ -105,5 +106,7 @@ public:
     */
     virtual int get_cached_estimate(const State &state) const;
 };
+
+extern void add_evaluator_options_to_feature(plugins::Feature &feature);
 
 #endif

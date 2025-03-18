@@ -1,1 +1,1 @@
-../21.12/Dockerfile.21.12
+../23.06/Dockerfile.23.06

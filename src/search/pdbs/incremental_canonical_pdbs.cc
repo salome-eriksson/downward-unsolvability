@@ -2,6 +2,7 @@
 
 #include "canonical_pdbs.h"
 #include "pattern_database.h"
+#include "pattern_database_factory.h"
 
 #include <limits>
 
@@ -24,7 +25,7 @@ IncrementalCanonicalPDBs::IncrementalCanonicalPDBs(
 }
 
 void IncrementalCanonicalPDBs::add_pdb_for_pattern(const Pattern &pattern) {
-    pattern_databases->push_back(make_shared<PatternDatabase>(task_proxy, pattern));
+    pattern_databases->push_back(compute_pdb(task_proxy, pattern));
     size += pattern_databases->back()->get_size();
 }
 
@@ -60,8 +61,9 @@ bool IncrementalCanonicalPDBs::is_dead_end(const State &state) const {
 }
 
 PatternCollectionInformation
-IncrementalCanonicalPDBs::get_pattern_collection_information() const {
-    PatternCollectionInformation result(task_proxy, patterns);
+IncrementalCanonicalPDBs::get_pattern_collection_information(
+    utils::LogProxy &log) const {
+    PatternCollectionInformation result(task_proxy, patterns, log);
     result.set_pdbs(pattern_databases);
     result.set_pattern_cliques(pattern_cliques);
     return result;

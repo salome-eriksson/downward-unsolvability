@@ -10,7 +10,6 @@
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
-//#include <sstream>
 
 using namespace std;
 
@@ -37,7 +36,7 @@ UnaryOperator::UnaryOperator(
 
 // construction and destruction
 // TODO: unsolv_subsumption_check is currently hacked into max_heuristic...
-RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
+RelaxationHeuristic::RelaxationHeuristic(const plugins::Options &opts)
     : Heuristic(opts) {
     // Build propositions.
     propositions.resize(task_properties::get_num_facts(task_proxy));
@@ -72,7 +71,9 @@ RelaxationHeuristic::RelaxationHeuristic(const options::Options &opts)
     // Simplify unary operators.
     utils::Timer simplify_timer;
     simplify();
-    utils::g_log << "time to simplify: " << simplify_timer << endl;
+    if (log.is_at_least_normal()) {
+        log << "time to simplify: " << simplify_timer << endl;
+    }
 
     // Cross-reference unary operators.
     vector<vector<OpID>> precondition_of_vectors(propositions.size());
@@ -173,7 +174,9 @@ void RelaxationHeuristic::simplify() {
 
     const int MAX_PRECONDITIONS_TO_TEST = 5;
 
-    utils::g_log << "Simplifying " << unary_operators.size() << " unary operators..." << flush;
+    if (log.is_at_least_normal()) {
+        log << "Simplifying " << unary_operators.size() << " unary operators..." << flush;
+    }
 
     /*
       First, we create a map that maps the preconditions and effect
@@ -295,7 +298,9 @@ void RelaxationHeuristic::simplify() {
             is_dominated),
         unary_operators.end());
 
-    utils::g_log << " done! [" << unary_operators.size() << " unary operators]" << endl;
+    if (log.is_at_least_normal()) {
+        log << " done! [" << unary_operators.size() << " unary operators]" << endl;
+    }
 }
 /*
 // CARE: we assume the heuristic has just been calculated for this state

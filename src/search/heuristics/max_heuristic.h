@@ -36,7 +36,7 @@ class HSPMaxHeuristic : public relaxation_heuristic::RelaxationHeuristic {
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 public:
-    explicit HSPMaxHeuristic(const options::Options &opts);
+    explicit HSPMaxHeuristic(const plugins::Options &opts);
     virtual std::pair<SetExpression,Judgment> justify_h_value(
             CertificateManager &certmgr, State &s) override;
 };

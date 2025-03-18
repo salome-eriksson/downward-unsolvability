@@ -61,7 +61,7 @@ pair<int, int> compute_shrink_sizes(
   if the size limit is not violated. If so, trigger the shrinking process.
   Return true iff the factor was actually shrunk.
 */
-bool shrink_factor(
+static bool shrink_factor(
     FactoredTransitionSystem &fts,
     int index,
     int new_size,
@@ -127,7 +127,7 @@ bool shrink_before_merge_step(
         shrink_threshold_before_merge,
         shrink_strategy,
         log);
-    if (log.is_at_least_verbose() && shrunk1) {
+    if (shrunk1) {
         fts.statistics(index1, log);
     }
     bool shrunk2 = shrink_factor(
@@ -137,7 +137,7 @@ bool shrink_before_merge_step(
         shrink_threshold_before_merge,
         shrink_strategy,
         log);
-    if (log.is_at_least_verbose() && shrunk2) {
+    if (shrunk2) {
         fts.statistics(index2, log);
     }
     return shrunk1 || shrunk2;

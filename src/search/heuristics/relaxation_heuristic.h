@@ -119,20 +119,21 @@ protected:
     const Proposition *get_proposition(int var, int value) const;
     Proposition *get_proposition(int var, int value);
     Proposition *get_proposition(const FactProxy &fact);
+
     /*
       bool bdd_already_seen: whether the bdd was built before the function call already
       int bddindex: the index of the requested bdd in bdds vector
      */
     //std::pair<bool,int> get_bdd_for_state(const State &state);
 public:
-    explicit RelaxationHeuristic(const options::Options &options);
+    explicit RelaxationHeuristic(const plugins::Options &options);
 
     virtual bool dead_ends_are_reliable() const override;
 /*
     // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression,Judgment> get_dead_end_justification(
-            EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
+        EvaluationContext &eval_context, CertificateManager &unsolvmanager) override;
 */
 };
 }

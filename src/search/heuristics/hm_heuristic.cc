@@ -1,7 +1,6 @@
 #include "hm_heuristic.h"
 
-#include "../option_parser.h"
-#include "../plugin.h"
+#include "../plugins/plugin.h"
 
 #include "../task_utils/task_properties.h"
 #include "../utils/logging.h"
@@ -14,17 +13,19 @@
 using namespace std;
 
 namespace hm_heuristic {
-HMHeuristic::HMHeuristic(const Options &opts)
+HMHeuristic::HMHeuristic(const plugins::Options &opts)
     : Heuristic(opts),
       m(opts.get<int>("m")),
       has_cond_effects(task_properties::has_conditional_effects(task_proxy)),
       goals(task_properties::get_fact_pairs(task_proxy.get_goals())) {
       //goals(task_properties::get_fact_pairs(task_proxy.get_goals())),
       //unsolvability_setup(false) {
-    utils::g_log << "Using h^" << m << "." << endl;
-    utils::g_log << "The implementation of the h^m heuristic is preliminary." << endl
-                 << "It is SLOOOOOOOOOOOW." << endl
-                 << "Please do not use this for comparison!" << endl;
+    if (log.is_at_least_normal()) {
+        log << "Using h^" << m << "." << endl;
+        log << "The implementation of the h^m heuristic is preliminary." << endl
+            << "It is SLOOOOOOOOOOOW." << endl
+            << "Please do not use this for comparison!" << endl;
+    }
     generate_all_tuples();
 }
 
@@ -258,8 +259,10 @@ void HMHeuristic::generate_all_partial_tuples_aux(
 
 
 void HMHeuristic::dump_table() const {
-    for (auto &hm_ent : hm_table) {
-        utils::g_log << "h(" << hm_ent.first << ") = " << hm_ent.second << endl;
+    if (log.is_at_least_debug()) {
+        for (auto &hm_ent : hm_table) {
+            log << "h(" << hm_ent.first << ") = " << hm_ent.second << endl;
+        }
     }
 }
 
@@ -268,20 +271,20 @@ void HMHeuristic::setup_unsolvability_proof() {
     int varamount = task_proxy.get_variables().size();
     fact_to_variable.resize(varamount);
     strips_varamount = 0;
-    for(int i = 0; i < varamount; ++i) {
+    for (int i = 0; i < varamount; ++i) {
         int domsize = task_proxy.get_variables()[i].get_domain_size();
         fact_to_variable[i].resize(domsize);
-        for(int j = 0; j < domsize; ++j) {
+        for (int j = 0; j < domsize; ++j) {
             // we want the variables to start with 1 since that is how the DIMACS format works
             fact_to_variable[i][j] = ++strips_varamount;
         }
     }
 
     // store all mutex information in clause form
-    for(int i = 0; i < varamount; ++i) {
+    for (int i = 0; i < varamount; ++i) {
         int domsize = task_proxy.get_variables()[i].get_domain_size();
-        for(int j = 0; j < domsize-1; ++j) {
-            for(int k = j+1; k < domsize; ++k) {
+        for (int j = 0; j < domsize - 1; ++j) {
+            for (int k = j + 1; k < domsize; ++k) {
                 mutexes.push_back({-fact_to_variable[i][j], -fact_to_variable[i][k]});
             }
         }
@@ -290,12 +293,12 @@ void HMHeuristic::setup_unsolvability_proof() {
 }
 
 void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
-    if(!unsolvability_setup) {
+    if (!unsolvability_setup) {
         setup_unsolvability_proof();
     }
 
     std::forward_list<const Tuple *> tuples;
-    for(auto &elem : hm_table) {
+    for (auto &elem : hm_table) {
         if (elem.second == numeric_limits<int>::max()) {
             tuples.push_front(&(elem.first));
         }
@@ -303,15 +306,15 @@ void HMHeuristic::store_deadend_info(EvaluationContext &eval_context) {
     unreachable_tuples.insert({eval_context.get_state().get_id().get_value(), std::move(tuples)});
 }
 
-std::pair<SetExpression,Judgment> HMHeuristic::get_dead_end_justification(
-        EvaluationContext &eval_context, CertificateManager &unsolvmanager) {
+std::pair<SetExpression, Judgment> HMHeuristic::get_dead_end_justification(
+    EvaluationContext &eval_context, CertificateManager &unsolvmanager) {
 
     std::vector<std::vector<int>> clauses = mutexes;
     clauses.reserve(mutexes.size() + unreachable_tuples.size());
-    for(const Tuple * tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
+    for (const Tuple *tuple : unreachable_tuples[eval_context.get_state().get_id().get_value()]) {
         std::vector<int> clause;
         clause.reserve(tuple->size());
-        for(size_t i = 0; i < tuple->size(); ++i) {
+        for (size_t i = 0; i < tuple->size(); ++i) {
             const FactPair &fact = tuple->at(i);
             clause.push_back(-fact_to_variable[fact.var][fact.value]);
         }
@@ -334,30 +337,30 @@ std::pair<SetExpression,Judgment> HMHeuristic::get_dead_end_justification(
 }
 */
 
-static shared_ptr<Heuristic> _parse(OptionParser &parser) {
-    parser.document_synopsis("h^m heuristic", "");
-    parser.document_language_support("action costs", "supported");
-    parser.document_language_support("conditional effects", "ignored");
-    parser.document_language_support("axioms", "ignored");
-    parser.document_property("admissible",
-                             "yes for tasks without conditional "
-                             "effects or axioms");
-    parser.document_property("consistent",
-                             "yes for tasks without conditional "
-                             "effects or axioms");
-    parser.document_property("safe",
-                             "yes for tasks without conditional "
-                             "effects or axioms");
-    parser.document_property("preferred operators", "no");
+class HMHeuristicFeature : public plugins::TypedFeature<Evaluator, HMHeuristic> {
+public:
+    HMHeuristicFeature() : TypedFeature("hm") {
+        document_title("h^m heuristic");
 
-    parser.add_option<int>("m", "subset size", "2", Bounds("1", "infinity"));
-    Heuristic::add_options_to_parser(parser);
-    Options opts = parser.parse();
-    if (parser.dry_run())
-        return nullptr;
-    else
-        return make_shared<HMHeuristic>(opts);
-}
+        add_option<int>("m", "subset size", "2", plugins::Bounds("1", "infinity"));
+        Heuristic::add_options_to_feature(*this);
 
-static Plugin<Evaluator> _plugin("hm", _parse);
+        document_language_support("action costs", "supported");
+        document_language_support("conditional effects", "ignored");
+        document_language_support("axioms", "ignored");
+
+        document_property(
+            "admissible",
+            "yes for tasks without conditional effects or axioms");
+        document_property(
+            "consistent",
+            "yes for tasks without conditional effects or axioms");
+        document_property(
+            "safe",
+            "yes for tasks without conditional effects or axioms");
+        document_property("preferred operators", "no");
+    }
+};
+
+static plugins::FeaturePlugin<HMHeuristicFeature> _plugin;
 }
