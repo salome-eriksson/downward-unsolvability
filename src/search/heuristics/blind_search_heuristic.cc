@@ -31,6 +31,7 @@ void BlindSearchHeuristic::write_subcertificates(const std::string &filename) {
 
 int BlindSearchHeuristic::compute_heuristic(const State &ancestor_state) {
     State state = convert_ancestor_state(ancestor_state);
+    // TODO: optimality certificates need blind to always return 0
     if (task_properties::is_goal_state(task_proxy, state))
         return 0;
     else

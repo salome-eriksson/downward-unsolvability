@@ -379,7 +379,8 @@ std::pair<SetExpression, Judgment> RelaxationHeuristic::get_dead_end_justificati
 
     if (entry == knowledge_for_bdd.end()) {
         SetExpression set = certmanager.define_bdd(bdds[bddindex]);
-        SetExpression progression = certmanager.define_set_progression(set, 0);
+        SetExpression all_actions = certmanager.get_allactions();
+        SetExpression progression = certmanager.define_set_progression(set, all_actions);
         SetExpression empty_set = certmanager.get_emptyset();
         SetExpression union_with_empty = certmanager.define_set_union(set, empty_set);
         SetExpression goal_set = certmanager.get_goalset();

@@ -89,6 +89,7 @@ public:
     static void add_options_to_feature(plugins::Feature &feature);
     static void add_succ_order_options(plugins::Feature &feature);
     static void add_unsolvability_options(plugins::Feature &feature);
+    static void add_optimality_options(plugins::Feature &feature);
 };
 
 /*

@@ -99,6 +99,110 @@ int HSPMaxHeuristic::compute_heuristic(const State &ancestor_state) {
     return total_cost;
 }
 
+std::pair<SetExpression, Judgment> HSPMaxHeuristic::justify_h_value (
+        CertificateManager &certmgr, State &state) {
+    /*std::vector<std::vector<int>> clauses(0);
+    static SetExpression allstates = certmgr.define_horn_formula(0, clauses);*/
+
+    // TODO: don't (ab)use unsolvability_setup flag
+    if(!unsolvability_setup) {
+        cudd_manager = new CuddManager(task);
+        unsolvability_setup = true;
+    }
+    static SetExpression allstates = certmgr.define_bdd(CuddBDD(cudd_manager, true));
+    static Judgment allstates_bound = certmgr.apply_rule_tc(allstates);
+    static Judgment empty_bound = certmgr.apply_rule_ec();
+    static Judgment allactions_subset_allactions = certmgr.make_statement(certmgr.get_allactions(), certmgr.get_allactions(), "b5");
+
+    int h_value = compute_heuristic(state);
+
+    if (h_value == DEAD_END) {
+        std::vector<std::pair<int,int>> unreachable_facts;
+//        std::unordered_set<int>unreachable_vars(0);
+        for (size_t var = 0; var < task_proxy.get_variables().size(); ++var) {
+            for (size_t val = 0; val < (size_t) task_proxy.get_variables()[var].get_domain_size(); ++val) {
+                Proposition *prop = get_proposition(var,val);
+                if (prop->cost == -1) {
+                    unreachable_facts.push_back({var,val});
+//                    unreachable_vars.insert(certmgr.get_variable(var,val));
+                }
+            }
+        }
+/*        for (int var: unreachable_vars) {
+            clauses.push_back({-(var+1)}); //Dimacs needs an offset of 1
+        }*/
+        SetExpression formula = certmgr.define_bdd(CuddBDD(cudd_manager, {}, unreachable_facts));
+//        SetExpression formula = certmgr.define_horn_formula(certmgr.get_factamount(), clauses);
+        SetExpression intersection = certmgr.define_set_intersection(formula, certmgr.get_goalset());
+        Judgment goal_intersection_empty = certmgr.make_statement(intersection, certmgr.get_emptyset(), "b1");
+        SetExpression progression = certmgr.define_set_progression(formula, certmgr.get_allactions());
+        SetExpression union_with_empty = certmgr.define_set_union(formula, certmgr.get_emptyset());
+        Judgment prog_judgment = certmgr.make_statement(progression, union_with_empty, "b2");
+        Judgment infinite_bound = certmgr.apply_rule_pc(formula, std::numeric_limits<unsigned>::max(),
+                                                        allactions_subset_allactions, goal_intersection_empty,
+                                                        {{prog_judgment, empty_bound}});
+        return {formula, infinite_bound};
+    } else {
+        std::unordered_map<int,std::vector<std::pair<int,int>>> vars_by_bound(0);
+        for (size_t var = 0; var < task_proxy.get_variables().size(); ++var) {
+            for (int val = 0; val < task_proxy.get_variables()[var].get_domain_size(); ++val) {
+                Proposition *prop = get_proposition(var,val);
+                int cost = (prop->cost == -1) ? h_value+1 : prop->cost;
+                if (cost > 0) {
+                    vars_by_bound[std::max(0,h_value-cost)].push_back({var,val});
+                    //vars_by_bound[std::max(0,h_value-cost)].push_back(certmgr.get_variable(var,val));
+                }
+            }
+        }
+
+        std::vector<int> bounds;
+        bounds.reserve(vars_by_bound.size());
+        for (auto it : vars_by_bound) {
+            bounds.push_back(it.first);
+        }
+        bounds.push_back(h_value);
+        std::sort(bounds.begin(), bounds.end());
+
+        std::vector<std::pair<int,int>> negative_facts;
+        std::vector<std::pair<SetExpression,Judgment>> sets_and_their_bounds;
+        sets_and_their_bounds.push_back({allstates,allstates_bound});
+        for (size_t bound_id = 1; bound_id < bounds.size(); ++bound_id) {
+            //prepare new formula
+            int bound = bounds[bound_id];
+            for (std::pair<int,int> fact : vars_by_bound[bounds[bound_id-1]]) {
+//                clauses.push_back({-(var+1)}); //Dimacs needs an offset of 1
+                negative_facts.push_back(fact);
+            }
+//            SetExpression bound_set = certmgr.define_horn_formula(certmgr.get_factamount(), clauses);
+            SetExpression bound_set = certmgr.define_bdd(CuddBDD(cudd_manager, {}, negative_facts));
+
+            // Judgments for PC rule
+            SetExpression goal_intersection = certmgr.define_set_intersection(bound_set, certmgr.get_goalset());
+            Judgment empty_goal = certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
+            std::vector<std::pair<Judgment,Judgment>> successor_bounds;
+            for (auto element : certmgr.get_sorted_actions()) {
+                SetExpression actionset = element.first;
+                int action_cost = element.second;
+                auto it = std::lower_bound(bounds.begin(), bounds.end(), bound-action_cost);
+                size_t index = std::distance(bounds.begin(), it);
+                std::pair<SetExpression, Judgment> background =
+                        (*it == bound) ? std::make_pair(certmgr.get_emptyset(), empty_bound)
+                                             : sets_and_their_bounds[index];
+
+                SetExpression progression = certmgr.define_set_progression(bound_set, actionset);
+                SetExpression right_union = certmgr.define_set_union(bound_set, background.first);
+                Judgment prog_judgment = certmgr.make_statement(progression, right_union, "b2");
+                successor_bounds.push_back({prog_judgment, background.second});
+            }
+            Judgment bound_judgment = certmgr.apply_rule_pc(bound_set, bound, certmgr.get_all_actions_contained_judgment(),
+                                                            empty_goal, successor_bounds);
+            sets_and_their_bounds.push_back({bound_set, bound_judgment});
+        }
+        return sets_and_their_bounds[bounds.size()-1];
+    }
+}
+
+
 class HSPMaxHeuristicFeature : public plugins::TypedFeature<Evaluator, HSPMaxHeuristic> {
 public:
     HSPMaxHeuristicFeature() : TypedFeature("hmax") {

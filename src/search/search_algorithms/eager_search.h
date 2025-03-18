@@ -19,7 +19,6 @@ class Feature;
 namespace eager_search {
 class EagerSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
-    const UnsolvabilityVerificationType unsolv_type;
 
     std::unique_ptr<StateOpenList> open_list;
     std::shared_ptr<Evaluator> f_evaluator;
@@ -34,8 +33,12 @@ class EagerSearch : public SearchAlgorithm {
     void update_f_value_statistics(EvaluationContext &eval_context);
     void reward_progress();
 
-    std::string certificate_directory;
+    // fields related to certificates
+    const UnsolvabilityVerificationType unsolv_type;
     std::ofstream unsolvability_certificate_hints;
+    bool verify_optimality;
+    std::shared_ptr<Evaluator> h_evaluator; // gives us direct evaluator access
+    std::string certificate_directory;
 
 protected:
     virtual void initialize() override;
@@ -49,8 +52,10 @@ public:
 
     void dump_search_space() const;
 
+    // functions related to certifiates
     void write_unsolvability_certificate();
     void write_unsolvability_proof();
+    void write_optimality_certificate(unsigned optimal_cost);
     void write_certificate_task_file(const std::vector<int> &varorder);
 };
 

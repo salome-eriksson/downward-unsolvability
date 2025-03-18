@@ -177,7 +177,8 @@ std::pair<SetExpression, Judgment> MergeAndShrinkHeuristic::get_dead_end_justifi
     if (!deadends_shown_dead) {
         get_bdd();
         SetExpression set = certmanager.define_bdd(*bdd);
-        SetExpression progression = certmanager.define_set_progression(set, 0);
+        SetExpression all_actions = certmanager.get_allactions();
+        SetExpression progression = certmanager.define_set_progression(set, all_actions);
         SetExpression empty_set = certmanager.get_emptyset();
         SetExpression union_with_empty = certmanager.define_set_union(set, empty_set);
         SetExpression goal_set = certmanager.get_goalset();

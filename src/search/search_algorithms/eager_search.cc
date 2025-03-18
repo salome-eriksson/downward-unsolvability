@@ -11,9 +11,11 @@
 #include "../utils/logging.h"
 
 #include "../certificates/certificatemanager.h"
+#include "../task_utils/task_properties.h"
 
 #include <cassert>
 #include <cstdlib>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <set>
@@ -24,20 +26,23 @@ namespace eager_search {
 EagerSearch::EagerSearch(const plugins::Options &opts)
     : SearchAlgorithm(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
-      unsolv_type(opts.get<UnsolvabilityVerificationType>("unsolv_verification")),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_state_open_list()),
       f_evaluator(opts.get<shared_ptr<Evaluator>>("f_eval", nullptr)),
+      h_evaluator(opts.get<shared_ptr<Evaluator>>("eval", nullptr)),
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
-      pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")) {
+      pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
+      unsolv_type(opts.get<UnsolvabilityVerificationType>("unsolv_verification")),
+      verify_optimality(opts.get<bool>("verify_optimality")) {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
 
-    if(unsolv_type != UnsolvabilityVerificationType::NONE) {
-        // TODO: reenable unsolv directory as string
+    // set certificate directory if a certificate should be written
+    if (unsolv_type != UnsolvabilityVerificationType::NONE || verify_optimality) {
+        // TODO: reenable certificate directory as string
         /*if(certificate_directory.compare(".") == 0) {
             certificate_directory = "";
         }
@@ -63,11 +68,13 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
             certificate_directory += "/";
         }*/
         certificate_directory = "";
-        std::cout << "Generating unsolvability verification in "
+
+        std::cout << "Generating certificate in "
                   << certificate_directory << std::endl;
+
         if (unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             CuddManager::set_compact_proof(false);
-        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF) {
+        } else if (unsolv_type == UnsolvabilityVerificationType::PROOF || verify_optimality) {
             CuddManager::set_compact_proof(true);
         }
     }
@@ -229,8 +236,12 @@ SearchStatus EagerSearch::step() {
     }
 
     const State &s = node->get_state();
-    if (check_goal_and_set_plan(s))
+    if (check_goal_and_set_plan(s)) {
+        if (verify_optimality) {
+            write_optimality_certificate((unsigned) calculate_plan_cost(get_plan(), task_proxy));
+        }
         return SOLVED;
+    }
 
     vector<OperatorID> applicable_ops;
     successor_generator.generate_applicable_ops(s, applicable_ops);
@@ -410,6 +421,7 @@ void add_options_to_feature(plugins::Feature &feature) {
     SearchAlgorithm::add_pruning_option(feature);
     SearchAlgorithm::add_options_to_feature(feature);
     SearchAlgorithm::add_unsolvability_options(feature);
+    SearchAlgorithm::add_optimality_options(feature);
 }
 
 void dump_statebdd(const State &s, std::ofstream &statebdd_file,
@@ -715,7 +727,7 @@ void EagerSearch::write_unsolvability_proof() {
 
     // Show that expanded states only lead to themselves and dead states.
     SetExpression expanded_set = certmgr.define_bdd(bdds[bdds.size() - 1]);
-    SetExpression expanded_progressed = certmgr.define_set_progression(expanded_set, 0);
+    SetExpression expanded_progressed = certmgr.define_set_progression(expanded_set, certmgr.get_allactions());
     SetExpression expanded_union_dead = certmgr.define_set_union(expanded_set, dead_end_set);
     SetExpression goal_set = certmgr.get_goalset();
     SetExpression goal_intersection = certmgr.define_set_intersection(expanded_set, goal_set);
@@ -745,6 +757,199 @@ void EagerSearch::write_unsolvability_proof() {
 
     double writing_end = utils::g_timer();
     std::cout << "Time for writing unsolvability proof: "
+              << writing_end - writing_start << std::endl;
+}
+
+
+void EagerSearch::write_optimality_certificate(unsigned optimal_cost) {
+    task_properties::verify_no_axioms(task_proxy);
+    task_properties::verify_no_conditional_effects(task_proxy);
+    double writing_start = utils::g_timer();
+    CertificateManager certmgr(certificate_directory, task);
+    std::vector<int> varorder(task_proxy.get_variables().size());
+    for(size_t i = 0; i < varorder.size(); ++i) {
+        varorder[i] = i;
+    }
+    int fact_amount = certmgr.get_factamount();
+
+    std::unordered_map<unsigned, CuddBDD> bdds_by_g_value;
+    std::unordered_map<unsigned, std::vector<StateID>> states_by_h_value;
+    std::unordered_map<unsigned, CuddBDD> bdds_by_h_value;
+    std::unordered_map<unsigned, std::pair<SetExpression, Judgment>> h_bound_info;
+    CuddManager manager(task);
+    for (StateID id : state_registry) {
+        State s = state_registry.lookup_state(id);
+        SearchNode node = search_space.get_node(s);
+        unsigned g_value = (unsigned) node.get_g();
+        if (g_value < optimal_cost || node.is_dead_end()) {
+            CuddBDD statebdd(&manager, s);
+            EvaluationContext eval_context(s);
+            unsigned h_value = 0;
+            if (eval_context.is_evaluator_value_infinite(h_evaluator.get())) {
+                h_value = std::numeric_limits<unsigned>::max();
+            } else {
+                h_value = eval_context.get_evaluator_value(h_evaluator.get());
+            }
+            if  (!node.is_closed() || node.is_dead_end()) {
+                states_by_h_value[h_value].push_back(id);
+                std::pair<SetExpression, Judgment> new_info = h_evaluator->justify_h_value(certmgr, s);
+                SetExpression s_set = certmgr.define_explicit_set(fact_amount, state_registry, {id});
+                Judgment s_set_subset = certmgr.make_statement(s_set, new_info.first, "b4");
+                Judgment s_set_bound = certmgr.apply_rule_sc(s_set, (unsigned) h_value, new_info.second, s_set_subset);
+                new_info = {s_set, s_set_bound};
+
+                auto res = bdds_by_h_value.insert({h_value, statebdd});
+                if (!res.second) {
+                    bdds_by_h_value[h_value].lor(statebdd);
+                    std::pair<SetExpression, Judgment> &existing_info = h_bound_info[h_value];
+                    existing_info.first =
+                            certmgr.define_set_union(existing_info.first, new_info.first);
+                    existing_info.second =
+                            certmgr.apply_rule_uc(existing_info.first, (unsigned) h_value,
+                                                  existing_info.second, new_info.second);
+                } else {
+                    h_bound_info[h_value] = new_info;
+                }
+            } else {
+                auto res = bdds_by_g_value.insert({g_value, statebdd});
+                if (!res.second) {
+                    bdds_by_g_value[g_value].lor(statebdd);
+                }
+            }
+        }
+    }
+
+    std::vector<unsigned> sorted_h_values;
+    sorted_h_values.reserve(states_by_h_value.size());
+    for (auto& it : states_by_h_value) {
+        sorted_h_values.push_back(it.first);
+    }
+    std::sort(sorted_h_values.begin(), sorted_h_values.end());
+    for (int i = (int) (sorted_h_values.size()-1); i >= 0; --i) {
+        unsigned h_value = sorted_h_values[i];
+        // build one explicit state set containing all states s with h(s)=h_value
+        SetExpression explicit_set =
+                certmgr.define_explicit_set(fact_amount, state_registry, states_by_h_value[h_value]);
+        // show that the singular explicit set is a subset of the union of all single state sets
+        Judgment explicit_subset_union =
+                certmgr.make_statement(explicit_set, h_bound_info[h_value].first, "b1");
+        // derive cost bound for singular explicit set
+        Judgment explicit_set_bound =
+                certmgr.apply_rule_sc(explicit_set, (unsigned) h_value, h_bound_info[h_value].second, explicit_subset_union);
+        // define bdd containing all states s with h(s) = h_value
+        SetExpression bdd_set = certmgr.define_bdd(bdds_by_h_value[h_value]);
+        // show that the bdd is a subset of the singular explicit set
+        Judgment bdd_subset_explicit = certmgr.make_statement(bdd_set, explicit_set, "b4");
+        // derive the bound for the bdd
+        Judgment bdd_bound =
+                certmgr.apply_rule_sc(bdd_set, (unsigned) h_value, explicit_set_bound, bdd_subset_explicit);
+
+        if ((size_t) i < sorted_h_values.size()-1) {
+            unsigned previous_h_value = sorted_h_values[i+1];
+            // show that implicit union with previous bdd has same bound
+            SetExpression bdd_union =
+                    certmgr.define_set_union(bdd_set, h_bound_info[previous_h_value].first);
+            Judgment bdd_union_bound =
+                    certmgr.apply_rule_uc(bdd_union, (unsigned) h_value, bdd_bound, h_bound_info[previous_h_value].second);
+            // build explicit union with the previous bdd -> it now represents all states with h(s) >= h_value
+            bdds_by_h_value[h_value].lor(bdds_by_h_value[previous_h_value]);
+            SetExpression new_bdd = certmgr.define_bdd(bdds_by_h_value[h_value]);
+            // show that explicit union has the same bound
+            Judgment new_bdd_subset =
+                    certmgr.make_statement(new_bdd, bdd_union, "b1");
+            Judgment new_bdd_bound = certmgr.apply_rule_sc(new_bdd, (unsigned) h_value, bdd_union_bound, new_bdd_subset);
+            h_bound_info[h_value] = {new_bdd, new_bdd_bound};
+        } else {
+            h_bound_info[h_value] = {bdd_set, bdd_bound};
+        }
+    }
+    if (h_bound_info.count(std::numeric_limits<unsigned>::max()) == 0) {
+        Judgment empty_bound = certmgr.apply_rule_ec();
+        h_bound_info[std::numeric_limits<unsigned>::max()] = {certmgr.get_emptyset(), empty_bound};
+        sorted_h_values.push_back(std::numeric_limits<unsigned>::max());
+    }
+
+    /*
+     * Create sets G_i, starting with G_optimalcost = states_by_g_value[0]
+     * and iteratively building G_i+j = G_i + states_by_g_value[optimalcost-(i+j)].
+     */
+    std::vector<unsigned> sorted_g_bounds;
+    sorted_g_bounds.reserve(bdds_by_g_value.size());
+    for (auto& it : bdds_by_g_value) {
+        sorted_g_bounds.push_back(optimal_cost - it.first);
+    }
+    std::sort (sorted_g_bounds.begin(), sorted_g_bounds.end());
+    std::unordered_map<unsigned, std::pair<SetExpression, Judgment>> g_bound_info;
+    CuddBDD lastBDD(&manager, false);
+    for (int i = (int) sorted_g_bounds.size()-1; i >= 0; --i) {
+        CuddBDD &bdd = bdds_by_g_value[optimal_cost-sorted_g_bounds[i]];
+        bdd.lor(lastBDD);
+        lastBDD = bdd;
+        // TODO: really bad style to use a randm
+        g_bound_info[sorted_g_bounds[i]] =
+            {certmgr.define_bdd(bdd), certmgr.get_all_actions_contained_judgment()};
+    }
+
+    std::unordered_map<unsigned, std::pair<SetExpression, Judgment>> union_bound_info;
+    SetExpression trivial_bdd = certmgr.define_bdd(CuddBDD(&manager, true));
+    union_bound_info[0] = {trivial_bdd, certmgr.apply_rule_tc(trivial_bdd)};
+
+    for (size_t si = 0; si < sorted_g_bounds.size(); ++si) {
+        unsigned bound = sorted_g_bounds[si];
+        SetExpression set = g_bound_info[bound].first;
+        SetExpression goal_intersection =
+                certmgr.define_set_intersection(set, certmgr.get_goalset());
+        Judgment empty_goal =
+                certmgr.make_statement(goal_intersection, certmgr.get_emptyset(), "b1");
+
+        std::vector<std::pair<Judgment,Judgment>> successor_bounds;
+        for (std::pair<SetExpression,int> actionset_and_cost : certmgr.get_sorted_actions()) {
+            SetExpression actionset = actionset_and_cost.first;
+            unsigned action_cost = (unsigned) actionset_and_cost.second;
+            size_t other_bound = (action_cost > bound) ? 0 : bound-action_cost;
+            std::pair<SetExpression,Judgment> other_bound_info;
+            if (union_bound_info.count(other_bound) > 0) {
+                other_bound_info = union_bound_info[other_bound];
+            } else {
+                unsigned h_bound = *std::lower_bound(
+                            sorted_h_values.begin(), sorted_h_values.end(), other_bound);
+                unsigned g_bound = *std::lower_bound(
+                            sorted_g_bounds.begin(), sorted_g_bounds.end(), other_bound);
+                unsigned lower_bound = std::min(h_bound, g_bound);
+                if (g_bound == bound) {
+                    other_bound_info = h_bound_info[h_bound];
+                } else if (union_bound_info.count(lower_bound) > 0) {
+                    other_bound_info = union_bound_info[lower_bound];
+                } else {
+                    SetExpression other_bound_union = certmgr.define_set_union(
+                                g_bound_info[g_bound].first,
+                                h_bound_info[h_bound].first);
+                    Judgment other_bound_union_judgment = certmgr.apply_rule_uc(
+                                other_bound_union, lower_bound,
+                                g_bound_info[g_bound].second, h_bound_info[h_bound].second);
+                    union_bound_info[lower_bound] = {other_bound_union, other_bound_union_judgment};
+                    other_bound_info = union_bound_info[lower_bound];
+                }
+            }
+            SetExpression set_union = certmgr.define_set_union(set, other_bound_info.first);
+            SetExpression progression = certmgr.define_set_progression(set, actionset);
+            Judgment prog_judgment = certmgr.make_statement(progression, set_union, "b2");
+            successor_bounds.push_back({prog_judgment, other_bound_info.second});
+        }
+        g_bound_info[bound].second = certmgr.apply_rule_pc(set, bound, certmgr.get_all_actions_contained_judgment(),
+                                                  empty_goal, successor_bounds);
+    }
+
+    Judgment init_subset = certmgr.make_statement(certmgr.get_initset(), g_bound_info[optimal_cost].first, "b1");
+    Judgment init_bound = certmgr.apply_rule_sc(certmgr.get_initset(), (unsigned) optimal_cost, g_bound_info[optimal_cost].second, init_subset);
+    certmgr.apply_rule_bi(optimal_cost, init_bound);
+
+    certmgr.dump_BDDs();
+
+    write_certificate_task_file(varorder);
+
+    double writing_end = utils::g_timer();
+    std::cout << "Time for writing optimality proof: "
               << writing_end - writing_start << std::endl;
 }
 

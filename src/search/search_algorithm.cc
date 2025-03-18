@@ -178,6 +178,13 @@ void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
         "none");
 }
 
+void SearchAlgorithm::add_optimality_options(plugins::Feature &feature) {
+    feature.add_option<bool>(
+        "verify_optimality",
+        "Whether or not a certificate should be generated.",
+        "true");
+}
+
 void print_initial_evaluator_values(
     const EvaluationContext &eval_context) {
     eval_context.get_cache().for_each_evaluator_result(

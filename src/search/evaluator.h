@@ -95,7 +95,13 @@ public:
     // CARE: we assume this function is called right after heuristic computation
     virtual void store_deadend_info(EvaluationContext &) {}
 
+    // functions related to optimality proof generation
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(EvaluationContext &, CertificateManager &) {
+        std::cerr << "Not implemented!" << std::endl;
+        utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
+    }
+
+    virtual std::pair<SetExpression,Judgment> justify_h_value(CertificateManager &, State &) {
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }

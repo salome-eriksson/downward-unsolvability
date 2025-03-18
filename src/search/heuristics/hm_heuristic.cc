@@ -320,7 +320,8 @@ std::pair<SetExpression, Judgment> HMHeuristic::get_dead_end_justification(
     }
 
     SetExpression set = certmanager.define_horn_formula(strips_varamount, clauses);
-    SetExpression progression = certmanager.define_set_progression(set, 0);
+    SetExpression all_actions = certmanager.get_allactions();
+    SetExpression progression = certmanager.define_set_progression(set, all_actions);
     SetExpression empty_set = certmanager.get_emptyset();
     SetExpression union_with_empty = certmanager.define_set_union(set, empty_set);
     SetExpression goal_set = certmanager.get_goalset();
