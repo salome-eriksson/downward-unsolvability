@@ -265,6 +265,7 @@ void HMHeuristic::dump_table() const {
     }
 }
 
+
 void HMHeuristic::setup_unsolvability_proof() {
     int varamount = task_proxy.get_variables().size();
     fact_to_variable.resize(varamount);

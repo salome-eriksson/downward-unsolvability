@@ -27,7 +27,6 @@ public:
             "use preferred operators of these evaluators",
             "[]");
         eager_search::add_options_to_feature(*this);
-        SearchAlgorithm::add_unsolvability_options(*this);
     }
 };
 

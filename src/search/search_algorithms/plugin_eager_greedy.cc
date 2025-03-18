@@ -20,7 +20,6 @@ public:
             "boost",
             "boost value for preferred operator open lists", "0");
         eager_search::add_options_to_feature(*this);
-        SearchAlgorithm::add_unsolvability_options(*this);
 
         document_note(
             "Open list",

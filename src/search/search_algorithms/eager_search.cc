@@ -409,6 +409,7 @@ void EagerSearch::update_f_value_statistics(EvaluationContext &eval_context) {
 void add_options_to_feature(plugins::Feature &feature) {
     SearchAlgorithm::add_pruning_option(feature);
     SearchAlgorithm::add_options_to_feature(feature);
+    SearchAlgorithm::add_unsolvability_options(feature);
 }
 
 void dump_statebdd(const State &s, std::ofstream &statebdd_file,
