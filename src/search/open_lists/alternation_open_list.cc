@@ -3,7 +3,7 @@
 #include "../open_list.h"
 
 #include "../plugins/plugin.h"
-#include "../utils/memory.h"
+#include "../utils/component_errors.h"
 #include "../utils/system.h"
 
 #include <cassert>
@@ -25,8 +25,8 @@ protected:
                               const Entry &entry) override;
 
 public:
-    explicit AlternationOpenList(const plugins::Options &opts);
-    virtual ~AlternationOpenList() override = default;
+    AlternationOpenList(
+        const vector<shared_ptr<OpenListFactory>> &sublists, int boost);
 
     virtual Entry remove_min() override;
     virtual bool empty() const override;
@@ -50,10 +50,10 @@ public:
 
 
 template<class Entry>
-AlternationOpenList<Entry>::AlternationOpenList(const plugins::Options &opts)
-    : boost_amount(opts.get<int>("boost")) {
-    vector<shared_ptr<OpenListFactory>> open_list_factories(
-        opts.get_list<shared_ptr<OpenListFactory>>("sublists"));
+AlternationOpenList<Entry>::AlternationOpenList(
+    const vector<shared_ptr<OpenListFactory>> &sublists, int boost)
+    : boost_amount(boost) {
+    vector<shared_ptr<OpenListFactory>> open_list_factories(sublists);
     open_lists.reserve(open_list_factories.size());
     for (const auto &factory : open_list_factories)
         open_lists.push_back(factory->create_open_list<Entry>());
@@ -189,21 +189,27 @@ std::pair<SetExpression, Judgment> AlternationOpenList<Entry>::get_dead_end_just
 }
 
 
-AlternationOpenListFactory::AlternationOpenListFactory(const plugins::Options &options)
-    : options(options) {
+AlternationOpenListFactory::AlternationOpenListFactory(
+    const vector<shared_ptr<OpenListFactory>> &sublists, int boost)
+    : sublists(sublists),
+      boost(boost) {
+    utils::verify_list_not_empty(sublists, "sublists");
 }
 
 unique_ptr<StateOpenList>
 AlternationOpenListFactory::create_state_open_list() {
-    return utils::make_unique_ptr<AlternationOpenList<StateOpenListEntry>>(options);
+    return make_unique<AlternationOpenList<StateOpenListEntry>>(
+        sublists, boost);
 }
 
 unique_ptr<EdgeOpenList>
 AlternationOpenListFactory::create_edge_open_list() {
-    return utils::make_unique_ptr<AlternationOpenList<EdgeOpenListEntry>>(options);
+    return make_unique<AlternationOpenList<EdgeOpenListEntry>>(
+        sublists, boost);
 }
 
-class AlternationOpenListFeature : public plugins::TypedFeature<OpenListFactory, AlternationOpenListFactory> {
+class AlternationOpenListFeature
+    : public plugins::TypedFeature<OpenListFactory, AlternationOpenListFactory> {
 public:
     AlternationOpenListFeature() : TypedFeature("alt") {
         document_title("Alternation open list");
@@ -220,9 +226,12 @@ public:
             "0");
     }
 
-    virtual shared_ptr<AlternationOpenListFactory> create_component(const plugins::Options &options, const utils::Context &context) const override {
-        plugins::verify_list_non_empty<shared_ptr<OpenListFactory>>(context, options, "sublists");
-        return make_shared<AlternationOpenListFactory>(options);
+    virtual shared_ptr<AlternationOpenListFactory>
+    create_component(const plugins::Options &opts) const override {
+        return plugins::make_shared_from_arg_tuples<AlternationOpenListFactory>(
+            opts.get_list<shared_ptr<OpenListFactory>>("sublists"),
+            opts.get<int>("boost")
+            );
     }
 };
 

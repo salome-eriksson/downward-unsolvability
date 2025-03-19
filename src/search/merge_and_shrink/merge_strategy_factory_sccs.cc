@@ -29,17 +29,13 @@ static bool compare_sccs_decreasing(const vector<int> &lhs, const vector<int> &r
     return lhs.size() > rhs.size();
 }
 
-MergeStrategyFactorySCCs::MergeStrategyFactorySCCs(const plugins::Options &options)
-    : MergeStrategyFactory(options),
-      order_of_sccs(options.get<OrderOfSCCs>("order_of_sccs")),
-      merge_tree_factory(nullptr),
-      merge_selector(nullptr) {
-    if (options.contains("merge_tree")) {
-        merge_tree_factory = options.get<shared_ptr<MergeTreeFactory>>("merge_tree");
-    }
-    if (options.contains("merge_selector")) {
-        merge_selector = options.get<shared_ptr<MergeSelector>>("merge_selector");
-    }
+MergeStrategyFactorySCCs::MergeStrategyFactorySCCs(
+    const OrderOfSCCs &order_of_sccs,
+    const shared_ptr<MergeSelector> &merge_selector,
+    utils::Verbosity verbosity)
+    : MergeStrategyFactory(verbosity),
+      order_of_sccs(order_of_sccs),
+      merge_selector(merge_selector) {
 }
 
 unique_ptr<MergeStrategy> MergeStrategyFactorySCCs::compute_merge_strategy(
@@ -74,30 +70,23 @@ unique_ptr<MergeStrategy> MergeStrategyFactorySCCs::compute_merge_strategy(
         break;
     }
 
-    /*
-      Compute the indices at which the merged SCCs can be found when all
-      SCCs have been merged.
-    */
-    int index = num_vars - 1;
-    log << "SCCs of the causal graph:" << endl;
+    if (log.is_at_least_normal()) {
+        log << "SCCs of the causal graph:" << endl;
+    }
     vector<vector<int>> non_singleton_cg_sccs;
-    vector<int> indices_of_merged_sccs;
-    indices_of_merged_sccs.reserve(sccs.size());
     for (const vector<int> &scc : sccs) {
-        log << scc << endl;
+        if (log.is_at_least_normal()) {
+            log << scc << endl;
+        }
         int scc_size = scc.size();
-        if (scc_size == 1) {
-            indices_of_merged_sccs.push_back(scc.front());
-        } else {
-            index += scc_size - 1;
-            indices_of_merged_sccs.push_back(index);
+        if (scc_size != 1) {
             non_singleton_cg_sccs.push_back(scc);
         }
     }
-    if (sccs.size() == 1) {
+    if (log.is_at_least_normal() && sccs.size() == 1) {
         log << "Only one single SCC" << endl;
     }
-    if (static_cast<int>(sccs.size()) == num_vars) {
+    if (log.is_at_least_normal() && static_cast<int>(sccs.size()) == num_vars) {
         log << "Only singleton SCCs" << endl;
         assert(non_singleton_cg_sccs.empty());
     }
@@ -106,29 +95,18 @@ unique_ptr<MergeStrategy> MergeStrategyFactorySCCs::compute_merge_strategy(
         merge_selector->initialize(task_proxy);
     }
 
-    return utils::make_unique_ptr<MergeStrategySCCs>(
+    return make_unique<MergeStrategySCCs>(
         fts,
-        task_proxy,
-        merge_tree_factory,
         merge_selector,
-        move(non_singleton_cg_sccs),
-        move(indices_of_merged_sccs));
+        move(non_singleton_cg_sccs));
 }
 
 bool MergeStrategyFactorySCCs::requires_init_distances() const {
-    if (merge_tree_factory) {
-        return merge_tree_factory->requires_init_distances();
-    } else {
-        return merge_selector->requires_init_distances();
-    }
+    return merge_selector->requires_init_distances();
 }
 
 bool MergeStrategyFactorySCCs::requires_goal_distances() const {
-    if (merge_tree_factory) {
-        return merge_tree_factory->requires_goal_distances();
-    } else {
-        return merge_selector->requires_goal_distances();
-    }
+    return merge_selector->requires_goal_distances();
 }
 
 void MergeStrategyFactorySCCs::dump_strategy_specific_options() const {
@@ -151,12 +129,7 @@ void MergeStrategyFactorySCCs::dump_strategy_specific_options() const {
         log << endl;
 
         log << "Merge strategy for merging within sccs: " << endl;
-        if (merge_tree_factory) {
-            merge_tree_factory->dump_options(log);
-        }
-        if (merge_selector) {
-            merge_selector->dump_options(log);
-        }
+        merge_selector->dump_options(log);
     }
 }
 
@@ -164,7 +137,8 @@ string MergeStrategyFactorySCCs::name() const {
     return "sccs";
 }
 
-class MergeStrategyFactorySCCsFeature : public plugins::TypedFeature<MergeStrategyFactory, MergeStrategyFactorySCCs> {
+class MergeStrategyFactorySCCsFeature
+    : public plugins::TypedFeature<MergeStrategyFactory, MergeStrategyFactorySCCs> {
 public:
     MergeStrategyFactorySCCsFeature() : TypedFeature("merge_sccs") {
         document_title("Merge strategy SSCs");
@@ -191,28 +165,19 @@ public:
             "order_of_sccs",
             "how the SCCs should be ordered",
             "topological");
-        add_option<shared_ptr<MergeTreeFactory>>(
-            "merge_tree",
-            "the fallback merge strategy to use if a precomputed strategy should "
-            "be used.",
-            plugins::ArgumentInfo::NO_DEFAULT);
         add_option<shared_ptr<MergeSelector>>(
             "merge_selector",
-            "the fallback merge strategy to use if a stateless strategy should "
-            "be used.",
-            plugins::ArgumentInfo::NO_DEFAULT);
+            "the fallback merge strategy to use");
         add_merge_strategy_options_to_feature(*this);
     }
 
-    virtual shared_ptr<MergeStrategyFactorySCCs> create_component(const plugins::Options &options, const utils::Context &context) const override {
-        bool merge_tree = options.contains("merge_tree");
-        bool merge_selector = options.contains("merge_selector");
-        if ((merge_tree && merge_selector) || (!merge_tree && !merge_selector)) {
-            context.error(
-                "You have to specify exactly one of the options merge_tree "
-                "and merge_selector!");
-        }
-        return make_shared<MergeStrategyFactorySCCs>(options);
+    virtual shared_ptr<MergeStrategyFactorySCCs>
+    create_component(const plugins::Options &opts) const override {
+        return plugins::make_shared_from_arg_tuples<MergeStrategyFactorySCCs>(
+            opts.get<OrderOfSCCs>("order_of_sccs"),
+            opts.get<shared_ptr<MergeSelector>> ("merge_selector"),
+            get_merge_strategy_arguments_from_options(opts)
+            );
     }
 };
 

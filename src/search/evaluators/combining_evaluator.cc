@@ -4,20 +4,21 @@
 #include "../evaluation_result.h"
 
 #include "../plugins/plugin.h"
+#include "../utils/component_errors.h"
 
 using namespace std;
 
 namespace combining_evaluator {
-CombiningEvaluator::CombiningEvaluator(const plugins::Options &opts)
-    : Evaluator(opts),
-      subevaluators(opts.get_list<shared_ptr<Evaluator>>("evals")) {
+CombiningEvaluator::CombiningEvaluator(
+    const vector<shared_ptr<Evaluator>> &evals,
+    const string &description, utils::Verbosity verbosity)
+    : Evaluator(false, false, false, description, verbosity),
+      subevaluators(evals) {
+    utils::verify_list_not_empty(evals, "evals");
     all_dead_ends_are_reliable = true;
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators)
         if (!subevaluator->dead_ends_are_reliable())
             all_dead_ends_are_reliable = false;
-}
-
-CombiningEvaluator::~CombiningEvaluator() {
 }
 
 bool CombiningEvaluator::dead_ends_are_reliable() const {
@@ -85,9 +86,19 @@ std::pair<SetExpression, Judgment> CombiningEvaluator::get_dead_end_justificatio
 }
 
 
-void add_combining_evaluator_options_to_feature(plugins::Feature &feature) {
+void add_combining_evaluator_options_to_feature(
+    plugins::Feature &feature, const string &description) {
     feature.add_list_option<shared_ptr<Evaluator>>(
         "evals", "at least one evaluator");
-    add_evaluator_options_to_feature(feature);
+    add_evaluator_options_to_feature(feature, description);
+}
+
+tuple<vector<shared_ptr<Evaluator>>, const string, utils::Verbosity>
+get_combining_evaluator_arguments_from_options(
+    const plugins::Options &opts) {
+    return tuple_cat(
+        make_tuple(opts.get_list<shared_ptr<Evaluator>>("evals")),
+        get_evaluator_arguments_from_options(opts)
+        );
 }
 }

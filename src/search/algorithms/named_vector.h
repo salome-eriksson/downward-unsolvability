@@ -28,6 +28,10 @@ public:
         elements.push_back(element);
     }
 
+    void push_back(T &&element) {
+        elements.push_back(std::move(element));
+    }
+
     T &operator[](int index) {
         return elements[index];
     }
@@ -42,7 +46,8 @@ public:
 
     void set_name(int index, const std::string &name) {
         assert(index >= 0 && index < size());
-        if (index >= names.size()) {
+        int num_names = names.size();
+        if (index >= num_names) {
             if (name.empty()) {
                 // All unspecified names are empty by default.
                 return;
@@ -52,14 +57,18 @@ public:
         names[index] = name;
     }
 
-    std::string get_name(int index) const {
+    const std::string &get_name(int index) const {
         assert(index >= 0 && index < size());
         int num_names = names.size();
         if (index < num_names) {
             return names[index];
         } else {
-            // All unspecified names are empty by default.
-            return "";
+            /*
+              All unspecified names are empty by default. We use a static
+              string here to avoid returning a reference to a local object.
+            */
+            static std::string empty;
+            return empty;
         }
     }
 

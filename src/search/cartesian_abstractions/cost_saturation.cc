@@ -86,16 +86,16 @@ CostSaturation::CostSaturation(
     int max_states,
     int max_non_looping_transitions,
     double max_time,
-    bool use_general_costs,
     PickSplit pick_split,
+    bool use_general_costs,
     utils::RandomNumberGenerator &rng,
     utils::LogProxy &log)
     : subtask_generators(subtask_generators),
       max_states(max_states),
       max_non_looping_transitions(max_non_looping_transitions),
       max_time(max_time),
-      use_general_costs(use_general_costs),
       pick_split(pick_split),
+      use_general_costs(use_general_costs),
       rng(rng),
       log(log),
       num_abstractions(0),
@@ -190,7 +190,7 @@ bool CostSaturation::state_is_dead_end(const State &state) const {
 void CostSaturation::build_abstractions(
     const vector<shared_ptr<AbstractTask>> &subtasks,
     const utils::CountdownTimer &timer,
-    function<bool()> should_abort) {
+    const function<bool()> &should_abort) {
     int rem_subtasks = subtasks.size();
     for (shared_ptr<AbstractTask> subtask : subtasks) {
         subtask = get_remaining_costs_task(subtask);

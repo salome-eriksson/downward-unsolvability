@@ -30,7 +30,6 @@ public:
         return decorated_block_name.str();
     }
 
-    NO_RETURN
     virtual void error(const string &message) const override {
         ostringstream message_with_tokens;
         string all_tokens = tokens.str(0, tokens.size());
@@ -96,7 +95,7 @@ static ASTNodePtr parse_let(TokenStream &tokens, SyntaxAnalyzerContext &context)
         nested_value = parse_node(tokens, context);
     }
     tokens.pop(context, TokenType::CLOSING_PARENTHESIS);
-    return utils::make_unique_ptr<LetNode>(
+    return make_unique<LetNode>(
         variable_name, move(variable_definition), move(nested_value));
 }
 
@@ -154,14 +153,15 @@ static ASTNodePtr parse_function(TokenStream &tokens,
     }
     tokens.pop(context, TokenType::CLOSING_PARENTHESIS);
     string unparsed_config = tokens.str(initial_token_stream_index, tokens.get_position());
-    return utils::make_unique_ptr<FunctionCallNode>(
+    return make_unique<FunctionCallNode>(
         plugin_name, move(positional_arguments), move(keyword_arguments), unparsed_config);
 }
 
 static unordered_set<TokenType> literal_tokens {
-    TokenType::FLOAT,
-    TokenType::INTEGER,
     TokenType::BOOLEAN,
+    TokenType::STRING,
+    TokenType::INTEGER,
+    TokenType::FLOAT,
     TokenType::IDENTIFIER
 };
 
@@ -173,7 +173,7 @@ static ASTNodePtr parse_literal(TokenStream &tokens, SyntaxAnalyzerContext &cont
         message << "Token " << token << " cannot be parsed as literal";
         context.error(message.str());
     }
-    return utils::make_unique_ptr<LiteralNode>(token);
+    return make_unique<LiteralNode>(token);
 }
 
 static ASTNodePtr parse_list(TokenStream &tokens, SyntaxAnalyzerContext &context) {
@@ -188,30 +188,38 @@ static ASTNodePtr parse_list(TokenStream &tokens, SyntaxAnalyzerContext &context
         parse_sequence(tokens, context, TokenType::CLOSING_BRACKET, callback);
     }
     tokens.pop(context, TokenType::CLOSING_BRACKET);
-    return utils::make_unique_ptr<ListNode>(move(elements));
+    return make_unique<ListNode>(move(elements));
 }
 
-static vector<TokenType> PARSE_NODE_TOKEN_TYPES = {
-    TokenType::LET, TokenType::IDENTIFIER, TokenType::BOOLEAN,
-    TokenType::INTEGER, TokenType::FLOAT, TokenType::OPENING_BRACKET};
+static vector<TokenType> parse_node_token_types = {
+    TokenType::OPENING_BRACKET, TokenType::LET, TokenType::BOOLEAN,
+    TokenType::STRING, TokenType::INTEGER, TokenType::FLOAT,
+    TokenType::IDENTIFIER};
 
 static ASTNodePtr parse_node(TokenStream &tokens,
                              SyntaxAnalyzerContext &context) {
     utils::TraceBlock block(context, "Identify node type");
     Token token = tokens.peek(context);
-    if (find(PARSE_NODE_TOKEN_TYPES.begin(),
-             PARSE_NODE_TOKEN_TYPES.end(),
-             token.type) == PARSE_NODE_TOKEN_TYPES.end()) {
+    if (find(parse_node_token_types.begin(),
+             parse_node_token_types.end(),
+             token.type) == parse_node_token_types.end()) {
         ostringstream message;
         message << "Unexpected token '" << token
                 << "'. Expected any of the following token types: "
-                << utils::join(PARSE_NODE_TOKEN_TYPES, ", ");
+                << utils::join(parse_node_token_types, ", ");
         context.error(message.str());
     }
 
     switch (token.type) {
+    case TokenType::OPENING_BRACKET:
+        return parse_list(tokens, context);
     case TokenType::LET:
         return parse_let(tokens, context);
+    case TokenType::BOOLEAN:
+    case TokenType::STRING:
+    case TokenType::INTEGER:
+    case TokenType::FLOAT:
+        return parse_literal(tokens, context);
     case TokenType::IDENTIFIER:
         if (tokens.has_tokens(2)
             && tokens.peek(context, 1).type == TokenType::OPENING_PARENTHESIS) {
@@ -219,12 +227,6 @@ static ASTNodePtr parse_node(TokenStream &tokens,
         } else {
             return parse_literal(tokens, context);
         }
-    case TokenType::BOOLEAN:
-    case TokenType::INTEGER:
-    case TokenType::FLOAT:
-        return parse_literal(tokens, context);
-    case TokenType::OPENING_BRACKET:
-        return parse_list(tokens, context);
     default:
         ABORT("Unknown token type '" + token_type_name(token.type) + "'.");
     }

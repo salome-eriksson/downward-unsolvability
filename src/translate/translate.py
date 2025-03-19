@@ -50,6 +50,7 @@ DEBUG = False
 ## we only list codes that are used by the translator component of the planner.
 TRANSLATE_OUT_OF_MEMORY = 20
 TRANSLATE_OUT_OF_TIME = 21
+TRANSLATE_INPUT_ERROR = 31
 
 simplified_effect_condition_counter = 0
 added_implied_precondition_counter = 0
@@ -378,18 +379,14 @@ def translate_strips_axiom(axiom, dictionary, ranges, mutex_dict, mutex_ranges):
                                              ranges, mutex_dict, mutex_ranges)
     if conditions is None:
         return []
-    if axiom.effect.negated:
-        [(var, _)] = dictionary[axiom.effect.positive()]
-        effect = (var, ranges[var] - 1)
-    else:
-        [effect] = dictionary[axiom.effect]
-        # Here we exploit that due to the invariant analysis algorithm derived
-        # variables cannot have more than one representation in the dictionary,
-        # even with the full encoding. They can never be part of a non-trivial
-        # mutex group.
-    axioms = []
-    for condition in conditions:
-        axioms.append(sas_tasks.SASAxiom(condition.items(), effect))
+    assert not axiom.effect.negated
+    [effect] = dictionary[axiom.effect]
+    # Here we exploit that due to the invariant analysis algorithm derived
+    # variables cannot have more than one representation in the dictionary,
+    # even with the full encoding. They can never be part of a non-trivial
+    # mutex group.
+    axioms = [sas_tasks.SASAxiom(condition.items(), effect)
+              for condition in conditions]
     return axioms
 
 
@@ -554,12 +551,15 @@ def pddl_to_sas(task):
     elif goal_list is None:
         return unsolvable_sas_task("Trivially false goal")
 
+    negative_in_goal = set()
     for item in goal_list:
         assert isinstance(item, pddl.Literal)
+        if item.negated:
+            negative_in_goal.add(item.negate())
 
     with timers.timing("Computing fact groups", block=True):
         groups, mutex_groups, translation_key = fact_groups.compute_groups(
-            task, atoms, reachable_action_params)
+            task, atoms, reachable_action_params, negative_in_goal)
 
     with timers.timing("Building STRIPS to SAS dictionary"):
         ranges, strips_to_sas = strips_to_sas_dictionary(
@@ -753,3 +753,6 @@ if __name__ == "__main__":
         traceback.print_exc(file=sys.stdout)
         print("=" * 79)
         sys.exit(TRANSLATE_OUT_OF_MEMORY)
+    except pddl_parser.ParseError as e:
+        print(e)
+        sys.exit(TRANSLATE_INPUT_ERROR)

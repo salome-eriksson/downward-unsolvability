@@ -19,10 +19,10 @@
 using namespace std;
 
 namespace merge_and_shrink {
-ShrinkFH::ShrinkFH(const plugins::Options &opts)
-    : ShrinkBucketBased(opts),
-      f_start(opts.get<HighLow>("shrink_f")),
-      h_start(opts.get<HighLow>("shrink_h")) {
+ShrinkFH::ShrinkFH(HighLow shrink_f, HighLow shrink_h, int random_seed)
+    : ShrinkBucketBased(random_seed),
+      f_start(shrink_f),
+      h_start(shrink_h) {
 }
 
 vector<ShrinkBucketBased::Bucket> ShrinkFH::partition_into_buckets(
@@ -189,7 +189,8 @@ void ShrinkFH::dump_strategy_specific_options(utils::LogProxy &log) const {
     }
 }
 
-class ShrinkFHFeature : public plugins::TypedFeature<ShrinkStrategy, ShrinkFH> {
+class ShrinkFHFeature
+    : public plugins::TypedFeature<ShrinkStrategy, ShrinkFH> {
 public:
     ShrinkFHFeature() : TypedFeature("shrink_fh") {
         document_title("f-preserving shrink strategy");
@@ -205,7 +206,6 @@ public:
                 "AAAI Press",
                 "2007"));
 
-        ShrinkBucketBased::add_options_to_feature(*this);
         add_option<ShrinkFH::HighLow>(
             "shrink_f",
             "in which direction the f based shrink priority is ordered",
@@ -214,11 +214,12 @@ public:
             "shrink_h",
             "in which direction the h based shrink priority is ordered",
             "low");
+        add_shrink_bucket_options_to_feature(*this);
 
         document_note(
             "Note",
             "The strategy first partitions all states according to their "
-            "combination of f- and g-values. These partitions are then sorted, "
+            "combination of f- and h-values. These partitions are then sorted, "
             "first according to their f-value, then according to their h-value "
             "(increasing or decreasing, depending on the chosen options). "
             "States sorted last are shrinked together until reaching max_states.");
@@ -229,8 +230,8 @@ public:
             "is a numerical parameter for which sensible values include 1000, "
             "10000, 50000, 100000 and 200000) and the linear merge startegy "
             "cg_goal_level to obtain the variant 'f-preserving shrinking of "
-            "transition systems', called called HHH in the IJCAI 2011 paper, see "
-            "bisimulation based shrink strategy. "
+            "transition systems', called HHH in the IJCAI 2011 paper. Also "
+            "see bisimulation based shrink strategy. "
             "When we last ran experiments on interaction of shrink strategies "
             "with label reduction, this strategy performed best when used with "
             "label reduction before merging (and no label reduction before "
@@ -241,6 +242,15 @@ public:
             "dead state causes this shrink strategy to always use the map-based "
             "approach for partitioning states rather than the more efficient "
             "vector-based approach.");
+    }
+
+    virtual shared_ptr<ShrinkFH>
+    create_component(const plugins::Options &opts) const override {
+        return plugins::make_shared_from_arg_tuples<ShrinkFH>(
+            opts.get<ShrinkFH::HighLow>("shrink_f"),
+            opts.get<ShrinkFH::HighLow>("shrink_h"),
+            get_shrink_bucket_arguments_from_options(opts)
+            );
     }
 };
 

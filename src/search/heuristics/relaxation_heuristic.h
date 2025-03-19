@@ -7,6 +7,7 @@
 #include "../certificates/cudd_interface.h"
 #include "../evaluation_context.h"
 
+#include "../tasks/default_value_axioms_task.h"
 #include "../utils/collections.h"
 
 #include <cassert>
@@ -126,7 +127,11 @@ protected:
      */
     std::pair<bool, int> get_bdd_for_state(const State &state);
 public:
-    explicit RelaxationHeuristic(const plugins::Options &options);
+    RelaxationHeuristic(
+        tasks::AxiomHandlingType axioms,
+        const std::shared_ptr<AbstractTask> &transform,
+        bool cache_estimates, const std::string &description,
+        utils::Verbosity verbosity, bool unsolv_subsumption);
 
     virtual bool dead_ends_are_reliable() const override;
 
@@ -137,6 +142,11 @@ public:
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
         EvaluationContext &eval_context, CertificateManager &certmanager) override;
 };
-}
 
+extern void add_relaxation_heuristic_options_to_feature(
+    plugins::Feature &feature, const std::string &description);
+extern std::tuple<tasks::AxiomHandlingType, std::shared_ptr<AbstractTask>,
+                  bool, std::string, utils::Verbosity>
+get_relaxation_heuristic_arguments_from_options(const plugins::Options &opts);
+}
 #endif

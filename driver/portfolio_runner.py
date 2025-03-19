@@ -15,6 +15,7 @@ the process is started.
 
 __all__ = ["run"]
 
+from pathlib import Path
 import subprocess
 import sys
 
@@ -83,9 +84,10 @@ def compute_run_time(timeout, configs, pos):
     print("remaining time: {}".format(remaining_time))
     relative_time = configs[pos][0]
     remaining_relative_time = sum(config[0] for config in configs[pos:])
-    print("config {}: relative time {}, remaining {}".format(
-          pos, relative_time, remaining_relative_time))
-    return limits.round_time_limit(remaining_time * relative_time / remaining_relative_time)
+    absolute_time_limit = limits.round_time_limit(remaining_time * relative_time / remaining_relative_time)
+    print("config {}: relative time {}, remaining time {}, absolute time {}".format(
+          pos, relative_time, remaining_relative_time, absolute_time_limit))
+    return absolute_time_limit
 
 
 def run_sat_config(configs, pos, search_cost_type, heuristic_cost_type,
@@ -120,7 +122,7 @@ def run_sat(configs, executable, sas_file, plan_manager, final_config,
                 configs, pos, search_cost_type, heuristic_cost_type,
                 executable, sas_file, plan_manager, timeout, memory)
             if exitcode is None:
-                return
+                continue
 
             yield exitcode
             if exitcode == returncodes.SEARCH_UNSOLVABLE:
@@ -183,17 +185,16 @@ def can_change_cost_type(args):
     return any("S_COST_TYPE" in part or "H_COST_TRANSFORM" in part for part in args)
 
 
-def get_portfolio_attributes(portfolio):
+def get_portfolio_attributes(portfolio: Path):
     attributes = {}
-    with open(portfolio, "rb") as portfolio_file:
-        content = portfolio_file.read()
-        try:
-            exec(content, attributes)
-        except Exception:
-            returncodes.exit_with_driver_critical_error(
-                "The portfolio %s could not be loaded. Maybe it still "
-                "uses the old portfolio syntax? See the FDSS portfolios "
-                "for examples using the new syntax." % portfolio)
+    content = portfolio.read_bytes()
+    try:
+        exec(content, attributes)
+    except Exception:
+        returncodes.exit_with_driver_critical_error(
+            f"The portfolio {portfolio} could not be loaded. Maybe it still "
+            "uses the old portfolio syntax? See the FDSS portfolios "
+            "for examples using the new syntax.")
     if "CONFIGS" not in attributes:
         returncodes.exit_with_driver_critical_error("portfolios must define CONFIGS")
     if "OPTIMAL" not in attributes:
@@ -201,7 +202,7 @@ def get_portfolio_attributes(portfolio):
     return attributes
 
 
-def run(portfolio, executable, sas_file, plan_manager, time, memory):
+def run(portfolio: Path, executable, sas_file, plan_manager, time, memory):
     """
     Run the configs in the given portfolio file.
 

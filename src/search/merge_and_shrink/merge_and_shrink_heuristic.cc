@@ -21,11 +21,24 @@ using namespace std;
 using utils::ExitCode;
 
 namespace merge_and_shrink {
-MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const plugins::Options &opts)
-    : Heuristic(opts), cudd_manager(nullptr), bdd(nullptr),
-    deadends_shown_dead(false), bdd_to_stateid(-1) {
+MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(
+    const shared_ptr<MergeStrategyFactory> &merge_strategy,
+    const shared_ptr<ShrinkStrategy> &shrink_strategy,
+    const shared_ptr<LabelReduction> &label_reduction,
+    bool prune_unreachable_states, bool prune_irrelevant_states,
+    int max_states, int max_states_before_merge,
+    int threshold_before_merge, double main_loop_max_time,
+    const shared_ptr<AbstractTask> &transform, bool cache_estimates,
+    const string &description, utils::Verbosity verbosity)
+    : Heuristic(transform, cache_estimates, description, verbosity),
+      cudd_manager(nullptr), bdd(nullptr),
+      deadends_shown_dead(false), bdd_to_stateid(-1) {
     log << "Initializing merge-and-shrink heuristic..." << endl;
-    MergeAndShrinkAlgorithm algorithm(opts);
+    MergeAndShrinkAlgorithm algorithm(
+        merge_strategy, shrink_strategy, label_reduction,
+        prune_unreachable_states, prune_irrelevant_states,
+        max_states, max_states_before_merge, threshold_before_merge,
+        main_loop_max_time, verbosity);
     FactoredTransitionSystem fts = algorithm.build_factored_transition_system(task_proxy);
     extract_factors(fts);
     log << "Done initializing merge-and-shrink heuristic." << endl << endl;
@@ -197,7 +210,8 @@ std::pair<SetExpression, Judgment> MergeAndShrinkHeuristic::get_dead_end_justifi
     return set_and_dead_knowledge;
 }
 
-class MergeAndShrinkHeuristicFeature : public plugins::TypedFeature<Evaluator, MergeAndShrinkHeuristic> {
+class MergeAndShrinkHeuristicFeature
+    : public plugins::TypedFeature<Evaluator, MergeAndShrinkHeuristic> {
 public:
     MergeAndShrinkHeuristicFeature() : TypedFeature("merge_and_shrink") {
         document_title("Merge-and-shrink heuristic");
@@ -246,8 +260,8 @@ public:
                 "2018")
             );
 
-        Heuristic::add_options_to_feature(*this);
         add_merge_and_shrink_algorithm_options_to_feature(*this);
+        add_heuristic_options_to_feature(*this, "merge_and_shrink");
 
         document_note(
             "Note",
@@ -285,8 +299,8 @@ public:
             "value would be half of the time allocated for the planner.\n"
             "{{{\nmerge_and_shrink(shrink_strategy=shrink_bisimulation(greedy=false),"
             "merge_strategy=merge_sccs(order_of_sccs=topological,merge_selector="
-            "score_based_filtering(scoring_functions=[goal_relevance,dfp,"
-            "total_order])),label_reduction=exact(before_shrinking=true,"
+            "score_based_filtering(scoring_functions=[goal_relevance(),dfp(),"
+            "total_order()])),label_reduction=exact(before_shrinking=true,"
             "before_merging=false),max_states=50k,threshold_before_merge=1)\n}}}\n");
 
         document_language_support("action costs", "supported");
@@ -299,10 +313,12 @@ public:
         document_property("preferred operators", "no");
     }
 
-    virtual shared_ptr<MergeAndShrinkHeuristic> create_component(const plugins::Options &options, const utils::Context &context) const override {
-        plugins::Options options_copy(options);
-        handle_shrink_limit_options_defaults(options_copy, context);
-        return make_shared<MergeAndShrinkHeuristic>(options_copy);
+    virtual shared_ptr<MergeAndShrinkHeuristic>
+    create_component(const plugins::Options &opts) const override {
+        return plugins::make_shared_from_arg_tuples<MergeAndShrinkHeuristic>(
+            get_merge_and_shrink_algorithm_arguments_from_options(opts),
+            get_heuristic_arguments_from_options(opts)
+            );
     }
 };
 
