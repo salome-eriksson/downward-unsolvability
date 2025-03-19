@@ -22,27 +22,24 @@ class MergeAndShrinkHeuristic : public Heuristic {
 
 
 
-    // functions and variables related to unsolvability certificate generation
+    // fields and functions related to certificate generation
     CuddManager *cudd_manager;
     std::vector<int> variable_order;
-    // TODO: does this have to be a raw pointer?
     CuddBDD *bdd;
     std::string bdd_filename;
     std::pair<SetExpression, Judgment> set_and_dead_knowledge;
     bool deadends_shown_dead;
     int bdd_to_stateid;
-    virtual int create_subcertificate(EvaluationContext &eval_context) override;
-    virtual void write_subcertificates(const std::string &filename) override;
-    virtual std::vector<int> get_varorder() override;
-
     void get_bdd();
 protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 public:
     explicit MergeAndShrinkHeuristic(const plugins::Options &opts);
 
-    // currently not used
-    //virtual void store_deadend_info(EvaluationContext &eval_context) override;
+    // functions related to certificate generation
+    virtual int create_subcertificate(EvaluationContext &eval_context) override;
+    virtual void write_subcertificates(const std::string &filename) override;
+    virtual std::vector<int> get_varorder() override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
         EvaluationContext &eval_context, CertificateManager &certmanager) override;
 };

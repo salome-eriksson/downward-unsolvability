@@ -37,7 +37,7 @@ class EagerSearch : public SearchAlgorithm {
     const UnsolvabilityVerificationType unsolv_type;
     std::ofstream unsolvability_certificate_hints;
     bool verify_optimality;
-    std::shared_ptr<Evaluator> h_evaluator; // gives us direct evaluator access
+    std::shared_ptr<Evaluator> h_evaluator; // only set for A*, used by opt certs
     std::string certificate_directory;
 
 protected:
@@ -60,7 +60,8 @@ public:
 };
 
 extern void add_options_to_feature(plugins::Feature &feature);
-// function related to certificates
+
+// functions related to certificates
 extern void dump_statebdd(const State &s, std::ofstream &statebdd_file,
                    int amount_vars,
                    const std::vector<std::vector<int>> &fact_to_var);

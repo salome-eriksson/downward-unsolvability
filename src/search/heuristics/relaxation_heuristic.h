@@ -67,14 +67,6 @@ protected:
     std::vector<Proposition> propositions;
     std::vector<PropID> goal_propositions;
 
-    bool unsolv_subsumption_check;
-    CuddManager *cudd_manager;
-    std::vector<CuddBDD> bdds;
-    std::unordered_map<int, int> state_to_bddindex;
-    std::unordered_map<int, std::pair<SetExpression, Judgment>> knowledge_for_bdd;
-    bool unsolvability_setup;
-    std::vector<int> bdd_to_stateid;
-
     array_pool::ArrayPool preconditions_pool;
     array_pool::ArrayPool precondition_of_pool;
 
@@ -120,8 +112,16 @@ protected:
     Proposition *get_proposition(int var, int value);
     Proposition *get_proposition(const FactProxy &fact);
 
+    // fields and functions related to certificate generation
+    bool unsolv_subsumption_check;
+    CuddManager *cudd_manager;
+    std::vector<CuddBDD> bdds;
+    std::unordered_map<int, int> state_to_bddindex;
+    std::unordered_map<int, std::pair<SetExpression, Judgment>> knowledge_for_bdd;
+    bool unsolvability_setup;
+    std::vector<int> bdd_to_stateid;
     /*
-      bool bdd_already_seen: whether the bdd was built before the function call already
+      bool bdd_already_seen: whether the bdd was already built before the function call
       int bddindex: the index of the requested bdd in bdds vector
      */
     std::pair<bool, int> get_bdd_for_state(const State &state);
@@ -130,11 +130,9 @@ public:
 
     virtual bool dead_ends_are_reliable() const override;
 
-    // functions related to unsolvability certificate generation
+    // functions related to certificate generation
     virtual int create_subcertificate(EvaluationContext &eval_context) override;
     virtual void write_subcertificates(const std::string &filename) override;
-
-    // functions related to unsolvability proof generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
         EvaluationContext &eval_context, CertificateManager &certmanager) override;

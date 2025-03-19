@@ -36,7 +36,7 @@ public:
         return !(*this == other);
     }
 
-    //TODO: only needed for certificates, find a way around this
+    // functions related to certificate generation (ugly hack!)
     int get_value() const {
         return value;
     }

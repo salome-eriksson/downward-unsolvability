@@ -36,13 +36,6 @@ class HMHeuristic : public Heuristic {
     std::map<Tuple, int> hm_table;
     bool was_updated;
 
-    bool unsolvability_setup;
-    std::vector<std::vector<int>> fact_to_variable;
-
-    std::unordered_map<int, std::forward_list<const Tuple *>> unreachable_tuples;
-    int strips_varamount;
-    std::vector<std::vector<int>> mutexes;
-
     // auxiliary methods
     void init_hm_table(const Tuple &t);
     void update_hm_table();
@@ -67,6 +60,12 @@ class HMHeuristic : public Heuristic {
 
     void dump_table() const;
 
+    // fields and functions related to certificate generation
+    bool unsolvability_setup;
+    std::vector<std::vector<int>> fact_to_variable;
+    std::unordered_map<int, std::forward_list<const Tuple *>> unreachable_tuples;
+    int strips_varamount;
+    std::vector<std::vector<int>> mutexes;
     void setup_unsolvability_proof();
 
 protected:
@@ -77,6 +76,7 @@ public:
 
     virtual bool dead_ends_are_reliable() const override;
 
+    // functions related to certificate generation
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
         EvaluationContext &eval_context, CertificateManager &certmanager) override;

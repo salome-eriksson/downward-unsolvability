@@ -85,22 +85,17 @@ public:
         EvaluationContext &eval_context) = 0;
 
 
-    // functions related to unsolvability certificate generation
+    // functions related to certificate generation
     virtual int create_subcertificate(EvaluationContext &) {return -1;}
     virtual void write_subcertificates(const std::string &) {}
-    // can be left empty if varorder is identical to fdr task
+    // the varorder can be left empty if varorder is identical to the FDR task
     virtual std::vector<int> get_varorder() {return std::vector<int>();}
-
-    // functions related to unsolvability proof generation
-    // CARE: we assume this function is called right after heuristic computation
+    // CARE: we assume the next function is always called right after heuristic computation
     virtual void store_deadend_info(EvaluationContext &) {}
-
-    // functions related to optimality proof generation
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(EvaluationContext &, CertificateManager &) {
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }
-
     virtual std::pair<SetExpression,Judgment> justify_h_value(CertificateManager &, State &) {
         std::cerr << "Not implemented!" << std::endl;
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);

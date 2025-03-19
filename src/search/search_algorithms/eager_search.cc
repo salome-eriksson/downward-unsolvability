@@ -40,7 +40,6 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
 
-    // set certificate directory if a certificate should be written
     if (unsolv_type != UnsolvabilityVerificationType::NONE || verify_optimality) {
         task_properties::verify_no_axioms(task_proxy);
         task_properties::verify_no_conditional_effects(task_proxy);
@@ -430,6 +429,7 @@ void add_options_to_feature(plugins::Feature &feature) {
     SearchAlgorithm::add_options_to_feature(feature);
     SearchAlgorithm::add_unsolvability_options(feature);
 }
+
 
 void dump_statebdd(const State &s, std::ofstream &statebdd_file,
                    int amount_vars,
@@ -1034,4 +1034,5 @@ void EagerSearch::write_certificate_task_file(const std::vector<int> &varorder) 
     task_file << "end_actions\n";
     task_file.close();
 }
+
 }

@@ -171,6 +171,7 @@ void SearchAlgorithm::add_succ_order_options(plugins::Feature &feature) {
     utils::add_rng_options(feature);
 }
 
+
 void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
     feature.add_option<UnsolvabilityVerificationType>(
         "unsolv_verification",
@@ -184,6 +185,7 @@ void SearchAlgorithm::add_optimality_options(plugins::Feature &feature) {
         "Whether or not a certificate should be generated.",
         "false");
 }
+
 
 void print_initial_evaluator_values(
     const EvaluationContext &eval_context) {

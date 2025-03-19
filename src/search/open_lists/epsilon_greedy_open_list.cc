@@ -57,10 +57,10 @@ public:
     virtual bool empty() const override;
     virtual void clear() override;
 
+    // functions related to certificate generation
     virtual int create_subcertificate(EvaluationContext &eval_context) override;
     virtual void write_subcertificates(const std::string &filename) override;
     virtual std::vector<int> get_varorder() override;
-
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
         EvaluationContext &eval_context, CertificateManager &certmanager) override;
@@ -124,6 +124,8 @@ bool EpsilonGreedyOpenList<Entry>::is_reliable_dead_end(
     EvaluationContext &eval_context) const {
     return is_dead_end(eval_context) && evaluator->dead_ends_are_reliable();
 }
+
+
 template<class Entry>
 int EpsilonGreedyOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
     if(eval_context.is_evaluator_value_infinite(evaluator.get())) {
@@ -159,6 +161,7 @@ std::pair<SetExpression, Judgment> EpsilonGreedyOpenList<Entry>::get_dead_end_ju
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
+
 
 template<class Entry>
 void EpsilonGreedyOpenList<Entry>::get_path_dependent_evaluators(

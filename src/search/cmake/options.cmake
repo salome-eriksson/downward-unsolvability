@@ -11,15 +11,6 @@ with this flag, which can lead to hard-to-debug errors."
         FALSE)
 
     option(
-            USE_CUDD
-            "Compile with support for CUDD. \
-If CUDD is not installed, the planner will \
-still compile, but using features with flags that depend on CUDD will \
-cause an error. This behavior can be overwritten by setting the \
-option USE_CUDD to false."
-            TRUE)
-
-    option(
         USE_LP
         "Compile with support for all LP solvers installed on this system. \
 If any enabled library requires an LP solver, compile with all \
@@ -43,4 +34,13 @@ option USE_LP to false."
     # This option should not show up in CMake GUIs like ccmake where all
     # libraries are enabled or disabled manually.
     mark_as_advanced(DISABLE_LIBRARIES_BY_DEFAULT)
+
+    option(
+            USE_CUDD
+            "Compile with support for CUDD. \
+If CUDD is not installed, the planner will \
+still compile, but using features with flags that depend on CUDD will \
+cause an error. This behavior can be overwritten by setting the \
+option USE_CUDD to false."
+            TRUE)
 endfunction()

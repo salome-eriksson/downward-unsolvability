@@ -54,6 +54,8 @@ public:
     int get_generated() const {return generated_states;}
     int get_reopened() const {return reopened_states;}
     int get_generated_ops() const {return generated_ops;}
+
+    // functions related to certificate generation
     int get_dead_ends() const {return dead_end_states;}
 
     /*

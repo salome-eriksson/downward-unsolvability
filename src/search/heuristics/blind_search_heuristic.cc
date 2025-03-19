@@ -23,21 +23,22 @@ BlindSearchHeuristic::BlindSearchHeuristic(const plugins::Options &opts)
 BlindSearchHeuristic::~BlindSearchHeuristic() {
 }
 
+int BlindSearchHeuristic::compute_heuristic(const State &) {
+    /*
+      NOTE: This function was altered since optimality certificates 
+      need blind to always return 0. The original function returned
+      min_operator_cost if the state is not a goal state.
+    */
+    return 0;
+}
+
+
 void BlindSearchHeuristic::write_subcertificates(const std::string &filename) {
     std::ofstream cert_stream;
     cert_stream.open(filename);
     cert_stream.close();
 }
 
-int BlindSearchHeuristic::compute_heuristic(const State &) {
-    // optimality certificates need blind to always return 0
-    return 0;
-    /*if (task_properties::is_goal_state(task_proxy, state))
-        return 0;
-    else
-        return min_operator_cost;
-    */
-}
 
 class BlindSearchHeuristicFeature : public plugins::TypedFeature<Evaluator, BlindSearchHeuristic> {
 public:

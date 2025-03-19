@@ -39,10 +39,10 @@ public:
     virtual bool is_reliable_dead_end(
         EvaluationContext &eval_context) const override;
 
+    // functions related to certificate generation
     virtual int create_subcertificate(EvaluationContext &eval_context) override;
     virtual void write_subcertificates(const std::string &filename) override;
     virtual std::vector<int> get_varorder() override;
-
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(
         EvaluationContext &eval_context, CertificateManager &certmanager) override;
@@ -134,6 +134,7 @@ bool AlternationOpenList<Entry>::is_reliable_dead_end(
     return false;
 }
 
+
 template<class Entry>
 int AlternationOpenList<Entry>::create_subcertificate(EvaluationContext &eval_context) {
     for (const auto &sublist : open_lists) {
@@ -186,6 +187,7 @@ std::pair<SetExpression, Judgment> AlternationOpenList<Entry>::get_dead_end_just
     std::cerr << "Requested proof of deadness for non-dead state." << std::endl;
     utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
+
 
 AlternationOpenListFactory::AlternationOpenListFactory(const plugins::Options &options)
     : options(options) {

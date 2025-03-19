@@ -40,6 +40,8 @@ public:
        to PRUNED_STATE. */
     virtual bool is_total() const = 0;
     virtual void dump(utils::LogProxy &log) const = 0;
+
+    // functions related to certificate generation
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val) = 0;
     virtual CuddBDD *get_deadend_bdd(
         CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first) = 0;
@@ -61,6 +63,8 @@ public:
     virtual int get_value(const State &state) const override;
     virtual bool is_total() const override;
     virtual void dump(utils::LogProxy &log) const override;
+
+    // functions related to certificate generation
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
     virtual CuddBDD *get_deadend_bdd(
         CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);
@@ -84,6 +88,8 @@ public:
     virtual int get_value(const State &state) const override;
     virtual bool is_total() const override;
     virtual void dump(utils::LogProxy &log) const override;
+
+    // functions related to certificate generation
     virtual void get_bdds(CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val);
     virtual CuddBDD *get_deadend_bdd(
         CuddManager *manager, std::unordered_map<int, CuddBDD> &bdd_for_val, bool first);

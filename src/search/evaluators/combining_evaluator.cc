@@ -53,6 +53,7 @@ void CombiningEvaluator::get_path_dependent_evaluators(
         subevaluator->get_path_dependent_evaluators(evals);
 }
 
+
 int CombiningEvaluator::create_subcertificate(EvaluationContext &eval_context) {
     for (const shared_ptr<Evaluator> &subevaluator : subevaluators) {
         if (eval_context.is_evaluator_value_infinite(subevaluator.get())) {

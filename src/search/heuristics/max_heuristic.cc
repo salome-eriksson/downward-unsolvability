@@ -101,6 +101,7 @@ int HSPMaxHeuristic::compute_heuristic(const State &ancestor_state) {
 
 std::pair<SetExpression, Judgment> HSPMaxHeuristic::justify_h_value (
         CertificateManager &certmgr, State &state) {
+    // NOTE: the commented out code is an alternative representation with horn formulas
     /*std::vector<std::vector<int>> clauses(0);
     static SetExpression allstates = certmgr.define_horn_formula(0, clauses);*/
 
@@ -208,7 +209,9 @@ public:
     HSPMaxHeuristicFeature() : TypedFeature("hmax") {
         document_title("Max heuristic");
         add_option<bool>("unsolv_subsumption",
-                         "check if a dead-end is covered by a previous one",
+                         "Check if a dead-end is covered by a previous one."
+                         "This is more time efficient for verification, but"
+                         "less time efficient for generation.",
                          "false");
 
         Heuristic::add_options_to_feature(*this);

@@ -42,6 +42,7 @@ public:
     virtual void get_path_dependent_evaluators(
         std::set<Evaluator *> &evals) override;
 
+    // functions related to certificate generation
     virtual int create_subcertificate(EvaluationContext &eval_context) override;
     virtual void store_deadend_info(EvaluationContext &eval_context) override;
     virtual std::pair<SetExpression, Judgment> get_dead_end_justification(

@@ -335,6 +335,7 @@ std::pair<SetExpression, Judgment> HMHeuristic::get_dead_end_justification(
     return std::make_pair(set, set_dead);
 }
 
+
 class HMHeuristicFeature : public plugins::TypedFeature<Evaluator, HMHeuristic> {
 public:
     HMHeuristicFeature() : TypedFeature("hm") {

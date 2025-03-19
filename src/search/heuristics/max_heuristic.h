@@ -34,6 +34,8 @@ protected:
     virtual int compute_heuristic(const State &ancestor_state) override;
 public:
     explicit HSPMaxHeuristic(const plugins::Options &opts);
+
+    // functions related to certificate generation
     virtual std::pair<SetExpression,Judgment> justify_h_value(
             CertificateManager &certmgr, State &s) override;
 };
