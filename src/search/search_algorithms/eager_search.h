@@ -60,6 +60,10 @@ public:
 };
 
 extern void add_options_to_feature(plugins::Feature &feature);
+// function related to certificates
+extern void dump_statebdd(const State &s, std::ofstream &statebdd_file,
+                   int amount_vars,
+                   const std::vector<std::vector<int>> &fact_to_var);
 }
 
 #endif

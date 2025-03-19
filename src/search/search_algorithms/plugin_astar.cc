@@ -21,6 +21,7 @@ public:
             "An evaluator that re-evaluates a state before it is expanded.",
             plugins::ArgumentInfo::NO_DEFAULT);
         eager_search::add_options_to_feature(*this);
+        SearchAlgorithm::add_optimality_options(*this);
 
         document_note(
             "lazy_evaluator",

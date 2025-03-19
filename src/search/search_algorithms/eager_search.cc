@@ -29,12 +29,12 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_state_open_list()),
       f_evaluator(opts.get<shared_ptr<Evaluator>>("f_eval", nullptr)),
-      h_evaluator(opts.get<shared_ptr<Evaluator>>("eval", nullptr)),
       preferred_operator_evaluators(opts.get_list<shared_ptr<Evaluator>>("preferred")),
       lazy_evaluator(opts.get<shared_ptr<Evaluator>>("lazy_evaluator", nullptr)),
       pruning_method(opts.get<shared_ptr<PruningMethod>>("pruning")),
       unsolv_type(opts.get<UnsolvabilityVerificationType>("unsolv_verification")),
-      verify_optimality(opts.get<bool>("verify_optimality")) {
+      verify_optimality(opts.get<bool>("verify_optimality", false)),
+      h_evaluator(opts.get<shared_ptr<Evaluator>>("eval", nullptr)) {
     if (lazy_evaluator && !lazy_evaluator->does_cache_estimates()) {
         cerr << "lazy_evaluator must cache its estimates" << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -42,6 +42,9 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
 
     // set certificate directory if a certificate should be written
     if (unsolv_type != UnsolvabilityVerificationType::NONE || verify_optimality) {
+        task_properties::verify_no_axioms(task_proxy);
+        task_properties::verify_no_conditional_effects(task_proxy);
+
         // TODO: reenable certificate directory as string
         /*if(certificate_directory.compare(".") == 0) {
             certificate_directory = "";
@@ -69,8 +72,13 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
         }*/
         certificate_directory = "";
 
-        std::cout << "Generating certificate in "
-                  << certificate_directory << std::endl;
+        std::cout << "Generating certificate in ";
+        if (certificate_directory == "") {
+            cout << "current directory" << std::endl;
+        } else {
+            cout << certificate_directory << std::endl;
+        }
+
 
         if (unsolv_type == UnsolvabilityVerificationType::PROOF_DISCARD) {
             CuddManager::set_compact_proof(false);
@@ -421,11 +429,11 @@ void add_options_to_feature(plugins::Feature &feature) {
     SearchAlgorithm::add_pruning_option(feature);
     SearchAlgorithm::add_options_to_feature(feature);
     SearchAlgorithm::add_unsolvability_options(feature);
-    SearchAlgorithm::add_optimality_options(feature);
 }
 
 void dump_statebdd(const State &s, std::ofstream &statebdd_file,
-                   int amount_vars, const std::vector<std::vector<int>> &fact_to_var) {
+                   int amount_vars,
+                   const std::vector<std::vector<int>> &fact_to_var) {
     // first dump amount of bdds (=1) and index
     statebdd_file << "1 " << s.get_id().get_value() << "\n";
 
@@ -623,7 +631,7 @@ void EagerSearch::write_unsolvability_proof() {
 
     std::vector<MergeTreeEntry> merge_tree;
     if (dead_end_amount > 0) {
-        merge_tree.resize(ceil(log2(dead_end_amount + 1)));
+        merge_tree.resize((size_t) ceil(log2(dead_end_amount + 1)));
     }
     // mt_pos is the index of the first unused entry of merge_tree
     int mt_pos = 0;
@@ -762,8 +770,6 @@ void EagerSearch::write_unsolvability_proof() {
 
 
 void EagerSearch::write_optimality_certificate(unsigned optimal_cost) {
-    task_properties::verify_no_axioms(task_proxy);
-    task_properties::verify_no_conditional_effects(task_proxy);
     double writing_start = utils::g_timer();
     CertificateManager certmgr(certificate_directory, task);
     std::vector<int> varorder(task_proxy.get_variables().size());

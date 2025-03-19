@@ -182,7 +182,7 @@ void SearchAlgorithm::add_optimality_options(plugins::Feature &feature) {
     feature.add_option<bool>(
         "verify_optimality",
         "Whether or not a certificate should be generated.",
-        "true");
+        "false");
 }
 
 void print_initial_evaluator_values(

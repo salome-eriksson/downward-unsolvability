@@ -20,6 +20,9 @@ class MergeAndShrinkHeuristic : public Heuristic {
     void extract_nontrivial_factors(FactoredTransitionSystem &fts);
     void extract_factors(FactoredTransitionSystem &fts);
 
+
+
+    // functions and variables related to unsolvability certificate generation
     CuddManager *cudd_manager;
     std::vector<int> variable_order;
     // TODO: does this have to be a raw pointer?
@@ -27,8 +30,6 @@ class MergeAndShrinkHeuristic : public Heuristic {
     std::string bdd_filename;
     std::pair<SetExpression, Judgment> set_and_dead_knowledge;
     bool deadends_shown_dead;
-
-    // functions and variables related to unsolvability certificate generation
     int bdd_to_stateid;
     virtual int create_subcertificate(EvaluationContext &eval_context) override;
     virtual void write_subcertificates(const std::string &filename) override;

@@ -101,5 +101,5 @@ public:
     CUDD_METHOD(static void set_compact_proof(bool val))
     CUDD_METHOD(std::string get_filename() const)
 };
-
+extern void exit_oom(size_t size);
 #endif

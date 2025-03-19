@@ -22,7 +22,8 @@ using utils::ExitCode;
 
 namespace merge_and_shrink {
 MergeAndShrinkHeuristic::MergeAndShrinkHeuristic(const plugins::Options &opts)
-    : Heuristic(opts), bdd_to_stateid(-1) {
+    : Heuristic(opts), cudd_manager(nullptr), bdd(nullptr),
+    deadends_shown_dead(false), bdd_to_stateid(-1) {
     log << "Initializing merge-and-shrink heuristic..." << endl;
     MergeAndShrinkAlgorithm algorithm(opts);
     FactoredTransitionSystem fts = algorithm.build_factored_transition_system(task_proxy);
