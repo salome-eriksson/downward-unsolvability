@@ -233,7 +233,12 @@ void add_successors_order_options_to_feature(
     utils::add_rng_options_to_feature(feature);
 }
 
-
+void SearchAlgorithm::add_certificate_options(plugins::Feature &feature) {
+    feature.add_option<string>(
+            "certificate_directory",
+            "directory in which certificates are written in",
+            "\"./\"");
+}
 void SearchAlgorithm::add_unsolvability_options(plugins::Feature &feature) {
     feature.add_option<UnsolvabilityVerificationType>(
         "unsolv_verification",

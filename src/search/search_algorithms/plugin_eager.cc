@@ -39,6 +39,7 @@ public:
             opts.get<shared_ptr<Evaluator>>("f_eval", nullptr),
             opts.get_list<shared_ptr<Evaluator>>("preferred"),
             eager_search::get_eager_search_arguments_from_options(opts),
+            opts.get<string>("certificate_directory"),
             opts.get<UnsolvabilityVerificationType>("unsolv_verification"),
             false, nullptr
             );

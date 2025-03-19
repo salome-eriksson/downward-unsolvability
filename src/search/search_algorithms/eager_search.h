@@ -35,11 +35,11 @@ class EagerSearch : public SearchAlgorithm {
     void reward_progress();
 
     // fields related to certificates
+    std::string certificate_directory;
     const UnsolvabilityVerificationType unsolv_type;
     std::ofstream unsolvability_certificate_hints;
     bool verify_optimality;
     std::shared_ptr<Evaluator> h_evaluator; // only set for A*, used by opt certs
-    std::string certificate_directory;
 
 protected:
     virtual void initialize() override;
@@ -54,6 +54,7 @@ public:
         const std::shared_ptr<Evaluator> &lazy_evaluator,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity,
+        std::string certificate_directory,
         UnsolvabilityVerificationType unsolvability_type,
         bool verify_optimality, const std::shared_ptr<Evaluator> & h_evaluator);
 

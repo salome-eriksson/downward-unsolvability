@@ -87,6 +87,7 @@ public:
     std::string get_description() {return description;}
 
     // functions related to certificate generation
+    static void add_certificate_options(plugins::Feature &feature);
     static void add_unsolvability_options(plugins::Feature &feature);
     static void add_optimality_options(plugins::Feature &feature);
 };

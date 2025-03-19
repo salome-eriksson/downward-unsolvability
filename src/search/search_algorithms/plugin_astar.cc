@@ -60,6 +60,7 @@ public:
             options_copy.get_list<shared_ptr<Evaluator>>("preferred"),
             eager_search::get_eager_search_arguments_from_options(
                 options_copy),
+            options_copy.get<string>("certificate_directory"),
             options_copy.get<UnsolvabilityVerificationType>("unsolv_verification"),
             options_copy.get<bool>("verify_optimality"),
             options_copy.get<shared_ptr<Evaluator>>("eval")

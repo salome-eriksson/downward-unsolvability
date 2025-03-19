@@ -30,7 +30,7 @@ EagerSearch::EagerSearch(
     const shared_ptr<PruningMethod> &pruning,
     const shared_ptr<Evaluator> &lazy_evaluator, OperatorCost cost_type,
     int bound, double max_time, const string &description,
-    utils::Verbosity verbosity,
+    utils::Verbosity verbosity, std::string cert_directory,
     UnsolvabilityVerificationType unsolvability_type,
     bool verify_optimality, const std::shared_ptr<Evaluator> &h_evaluator)
     : SearchAlgorithm(
@@ -41,6 +41,7 @@ EagerSearch::EagerSearch(
       preferred_operator_evaluators(preferred),
       lazy_evaluator(lazy_evaluator),     // default nullptr
       pruning_method(pruning),
+      certificate_directory(cert_directory),
       unsolv_type(unsolvability_type),
       verify_optimality(verify_optimality),
       h_evaluator(h_evaluator) {
@@ -53,10 +54,6 @@ EagerSearch::EagerSearch(
         task_properties::verify_no_axioms(task_proxy);
         task_properties::verify_no_conditional_effects(task_proxy);
 
-        // TODO: reenable certificate directory as string
-        /*if(certificate_directory.compare(".") == 0) {
-            certificate_directory = "";
-        }
         // expand environment variables
         size_t found = certificate_directory.find('$');
         while(found != std::string::npos) {
@@ -75,13 +72,12 @@ EagerSearch::EagerSearch(
             certificate_directory.replace(found,envvar.length() + 1,expanded);
             found = certificate_directory.find('$');
         }
-        if (!certificate_directory.empty() && !(certificate_directory.back() == '/')) {
+        if (certificate_directory.back() != '/') {
             certificate_directory += "/";
-        }*/
-        certificate_directory = "";
+        }
 
         std::cout << "Generating certificate in ";
-        if (certificate_directory == "") {
+        if (certificate_directory == "./") {
             cout << "current directory" << std::endl;
         } else {
             cout << certificate_directory << std::endl;
@@ -435,6 +431,7 @@ void add_eager_search_options_to_feature(
     // We do not add a lazy_evaluator options here
     // because it is only used for astar but not the other plugins.
     add_search_algorithm_options_to_feature(feature, description);
+    SearchAlgorithm::add_certificate_options(feature);
     SearchAlgorithm::add_unsolvability_options(feature);
 }
 
